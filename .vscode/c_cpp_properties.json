@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/include/linux",
+                "/usr/local/include/opencv4",
+                "/usr/local/cuda-11.7/targets/x86_64-linux/include"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "gnu17"
+        }
+    ],
+    "version": 4
+}

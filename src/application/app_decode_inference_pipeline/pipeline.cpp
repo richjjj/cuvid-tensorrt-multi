@@ -5,6 +5,7 @@
 #include "common/cuda_tools.hpp"
 #include "common/json.hpp"
 #include <atomic>
+#include <vector>
 namespace Pipeline
 {
     class PipelineImpl : public Pipeline
@@ -40,23 +41,32 @@ namespace Pipeline
             auto objs = yolo_pose_->commit(image).get();
             // ObjectDetector::BoxArray objs;
             nlohmann::json tmp_json;
-            tmp_json["event"] = "falldown";
             int current_id = pview->get_idd();
             tmp_json["cameraId"] = current_id;
+            tmp_json["freshTime"] = timestamp; // 时间戳，表示当前的帧数
+            tmp_json["events"] = nlohmann::json::array();
             // 有人就保存
             cv::Mat cvimage(height, width, CV_8UC3);
             cudaMemcpyAsync(cvimage.data, pimage_data, width * height * 3, cudaMemcpyDeviceToHost, stream);
             cudaStreamSynchronize(stream);
             for (auto &obj : objs)
             {
-                // tmp_json["BoxArray"].emplace_back(obj);
-                uint8_t b, g, r;
-                tie(b, g, r) = iLogger::random_color(obj.class_label);
-                cv::rectangle(cvimage, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(b, g, r), 5);
-                auto caption = iLogger::format("%s %.2f", "person", obj.confidence);
-                int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
-                cv::rectangle(cvimage, cv::Point(obj.left - 3, obj.top - 33), cv::Point(obj.left + width, obj.top), cv::Scalar(b, g, r), -1);
-                cv::putText(cvimage, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
+                nlohmann::json event_json = {
+                    {"id", 0},
+                    {"event", "falldown"},
+                    {"box", {obj.left, obj.top, obj.right, obj.bottom}},
+                    {"entertime", ""},
+                    {"outtime", ""},
+                    {"score", obj.confidence}};
+
+                tmp_json["events"].emplace_back(event_json);
+                // uint8_t b, g, r;
+                // tie(b, g, r) = iLogger::random_color(obj.class_label);
+                // cv::rectangle(cvimage, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(b, g, r), 5);
+                // auto caption = iLogger::format("%s %.2f", "person", obj.confidence);
+                // int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+                // cv::rectangle(cvimage, cv::Point(obj.left - 3, obj.top - 33), cv::Point(obj.left + width, obj.top), cv::Scalar(b, g, r), -1);
+                // cv::putText(cvimage, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
             }
             // cv::imwrite(cv::format("imgs/%02d_%03d.jpg", pview->get_idd(), ++ids[pview->get_idd()]), cvimage);
             if (callback_)
