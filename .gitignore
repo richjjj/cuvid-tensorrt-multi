@@ -7,3 +7,4 @@ workspace/example
 workspace/libpro.so
 *.trtmodel
 *.onnx
+!yolov5s_pose.onnx
