@@ -1,5 +1,5 @@
 # docker 部署
-- 容器启动命令 `docker run --name cangku_runtime -it --network host --gpus all -v /home/xmrbi/cangku_workspace:/cangku_workspace --workdir /cangku_workspace imagename`
+- 容器启动命令 `docker run --name cangku_runtime -it --network host --gpus all -v /home/xmrbi/cangku_workspace:/cangku_workspace --workdir /cangku_workspace imagename "/opt/nvidia/nvidia_entrypoint.sh"`
 
 # 使用
 1. 为nvcuvid创建软链接，这个库随显卡驱动发布
