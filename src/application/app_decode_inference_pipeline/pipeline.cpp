@@ -115,13 +115,21 @@ namespace Pipeline
             tmp_json["events"] = nlohmann::json::array();
 
             // 有人就保存
+            // TODO, 训练摔倒、等GCN分类识别模型
             auto tracks = trackers_[current_name]->update(det2tracks(objs));
             // INFO("objs.size() : %d; tracks.size() : %d", objs.size(), tracks.size());
-            for (auto &track : tracks)
+            for (int i = 0; i < tracks.size(); i++)
             {
+                auto track = tracks[i];
+                // INFO("objs[i] left is %f; track[i] left is %f; _tlwh[i] is %f", objs[i].left, track.tlwh[0], track._tlwh[0]);
+                string event_string = "";
+                if (track.tlwh[2] > track.tlwh[3])
+                {
+                    event_string = "falldown";
+                }
                 nlohmann::json event_json = {
                     {"id", track.track_id},
-                    {"event", "falldown"},
+                    {"event", event_string},
                     {"box", {track.tlwh[0], track.tlwh[1], track.tlwh[2] + track.tlwh[0], track.tlwh[3] + track.tlwh[1]}},
                     {"entertime", ""},
                     {"outtime", ""},
