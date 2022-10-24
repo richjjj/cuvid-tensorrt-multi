@@ -1,12 +1,94 @@
 #include "pipeline.hpp"
 #include "app_yolo_gpuptr/yolo_gpuptr.hpp"
 #include "ffhdd/multi-camera.hpp"
+#include <ffhdd/ffmpeg-demuxer.hpp>
+#include <ffhdd/cuvid-decoder.hpp>
+#include <ffhdd/nalu.hpp>
 #include "common/ilogger.hpp"
 #include "common/cuda_tools.hpp"
 #include "common/json.hpp"
 #include <atomic>
+#include <vector>
+#include "builder/trt_builder.hpp"
 namespace Pipeline
 {
+    static shared_ptr<YoloGPUPtr::Infer> get_yolo(YoloGPUPtr::Type type, TRT::Mode mode, const string &model, int device_id)
+    {
+
+        auto mode_name = TRT::mode_string(mode);
+        TRT::set_device(device_id);
+
+        auto int8process = [=](int current, int count, const vector<string> &files, shared_ptr<TRT::Tensor> &tensor)
+        {
+            INFO("Int8 %d / %d", current, count);
+
+            for (int i = 0; i < files.size(); ++i)
+            {
+                auto image = cv::imread(files[i]);
+                YoloGPUPtr::image_to_tensor(image, tensor, type, i);
+            }
+        };
+
+        const char *name = model.c_str();
+        INFO("===================== test %s %s %s ==================================", YoloGPUPtr::type_name(type), mode_name, name);
+
+        string onnx_file = iLogger::format("%s.onnx", name);
+        string model_file = iLogger::format("%s.%s.trtmodel", name, mode_name);
+        int test_batch_size = 16;
+
+        if (!iLogger::exists(model_file))
+        {
+            TRT::compile(
+                mode,            // FP32、FP16、INT8
+                test_batch_size, // max batch size
+                onnx_file,       // source
+                model_file,      // save to
+                {},
+                int8process,
+                "inference");
+        }
+
+        return YoloGPUPtr::create_infer(
+            model_file,                     // engine file
+            type,                           // yolo type, YoloGPUPtr::Type::V5 / YoloGPUPtr::Type::X
+            device_id,                      // gpu id
+            0.25f,                          // confidence threshold
+            0.45f,                          // nms threshold
+            YoloGPUPtr::NMSMethod::FastGPU, // NMS method, fast GPU / CPU
+            1024                            // max objects
+        );
+    }
+    struct DecoderWrapper
+    {
+        shared_ptr<FFHDDemuxer::FFmpegDemuxer> demuxer;
+        shared_ptr<FFHDDecoder::CUVIDDecoder> decoder;
+        uint8_t *packet_data = nullptr;
+        int packet_size = 0;
+        uint64_t pts = 0;
+        bool is_valid = false;
+        string uri_{};
+        DecoderWrapper() = default;
+        DecoderWrapper(const string &uri)
+        {
+            uri_ = uri;
+            demuxer = FFHDDemuxer::create_ffmpeg_demuxer(uri);
+            if (demuxer == nullptr)
+            {
+                INFOE("demuxer create failed");
+                is_valid = false;
+                return;
+            }
+            decoder = FFHDDecoder::create_cuvid_decoder(
+                true, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()), -1, 0);
+            if (decoder == nullptr)
+            {
+                INFOE("decoder create failed");
+                is_valid = false;
+                return;
+            }
+            is_valid = true;
+        }
+    };
     class PipelineImpl : public Pipeline
     {
     public:
@@ -24,114 +106,112 @@ namespace Pipeline
             decoder_->join();
             INFO("pipeline done.");
         }
+
+        virtual void yolo_infer(FFHDMultiCamera::View *pview,
+                                uint8_t *pimage_data, int device_id, int width, int height,
+                                FFHDDecoder::FrameType type, uint64_t timestamp,
+                                FFHDDecoder::ICUStream stream)
+        {
+            unsigned int frame_index = 0;
+            YoloGPUPtr::Image image(
+                pimage_data,
+                width, height,
+                device_id,
+                stream,
+                YoloGPUPtr::ImageType::GPUBGR);
+            auto objs = yolo_pose_->commit(image).get();
+            // ObjectDetector::BoxArray objs;
+            nlohmann::json tmp_json;
+            int current_id = pview->get_idd();
+            tmp_json["cameraId"] = current_id;
+            tmp_json["freshTime"] = timestamp; // 时间戳，表示当前的帧数
+            tmp_json["events"] = nlohmann::json::array();
+            // 有人就保存
+            cv::Mat cvimage(height, width, CV_8UC3);
+            cudaMemcpyAsync(cvimage.data, pimage_data, width * height * 3, cudaMemcpyDeviceToHost, stream);
+            cudaStreamSynchronize(stream);
+            for (auto &obj : objs)
+            {
+                nlohmann::json event_json = {
+                    {"id", 0},
+                    {"event", "falldown"},
+                    {"box", {obj.left, obj.top, obj.right, obj.bottom}},
+                    {"entertime", ""},
+                    {"outtime", ""},
+                    {"score", obj.confidence}};
+
+                tmp_json["events"].emplace_back(event_json);
+                // uint8_t b, g, r;
+                // tie(b, g, r) = iLogger::random_color(obj.class_label);
+                // cv::rectangle(cvimage, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(b, g, r), 5);
+                // auto caption = iLogger::format("%s %.2f", "person", obj.confidence);
+                // int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+                // cv::rectangle(cvimage, cv::Point(obj.left - 3, obj.top - 33), cv::Point(obj.left + width, obj.top), cv::Scalar(b, g, r), -1);
+                // cv::putText(cvimage, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
+            }
+            // cv::imwrite(cv::format("imgs/%02d_%03d.jpg", pview->get_idd(), ++ids[pview->get_idd()]), cvimage);
+            if (callback_)
+            {
+                callback_(2, (void *)&cvimage, (char *)tmp_json.dump().c_str(), tmp_json.dump().size());
+            }
+        }
         virtual void make_views(const vector<string> &uris) override
         {
-            uris_.insert(uris_.end(), uris.begin(), uris.end()); // 扩充uris_
-            auto yolo_infer = [&](
-                                  FFHDMultiCamera::View *pview,
-                                  uint8_t *pimage_data, int device_id, int width, int height,
-                                  FFHDDecoder::FrameType type, uint64_t timestamp,
-                                  FFHDDecoder::ICUStream stream)
+            auto func = [&](shared_ptr<DecoderWrapper> current_decoder)
             {
-                unsigned int frame_index = 0;
-                YoloGPUPtr::Image image(
-                    pimage_data,
-                    width, height,
-                    device_id,
-                    stream,
-                    YoloGPUPtr::ImageType::GPUBGR);
-                auto objs = yolo_pose_->commit(image).get();
+                auto &packet_size = current_decoder->packet_size;
+                auto &packet_data = current_decoder->packet_data;
+                auto &pts = current_decoder->pts;
 
-                nlohmann::json tmp_json;
-                tmp_json["event"] = "falldown";
-                int current_id = pview->get_idd();
-                tmp_json["cameraId"] = current_id;
-                // 有人就保存
-                if (!objs.empty())
+                current_decoder->demuxer->get_extra_data(&packet_data, &packet_size);
+                current_decoder->decoder->decode(packet_data, packet_size);
+                do
                 {
-
-                    cv::Mat cvimage(height, width, CV_8UC3);
-                    cudaMemcpyAsync(cvimage.data, pimage_data, width * height * 3, cudaMemcpyDeviceToHost, stream);
-                    cudaStreamSynchronize(stream);
-                    for (auto &obj : objs)
+                    current_decoder->demuxer->demux(&packet_data, &packet_size, &pts);
+                    int ndecoded_frame = current_decoder->decoder->decode(packet_data, packet_size, pts);
+                    for (int i = 0; i < ndecoded_frame; ++i)
                     {
-                        // tmp_json["BoxArray"].emplace_back(obj);
-                        uint8_t b, g, r;
-                        tie(b, g, r) = iLogger::random_color(obj.class_label);
-                        cv::rectangle(cvimage, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(b, g, r), 5);
-                        auto caption = iLogger::format("%s %.2f", "person", obj.confidence);
-                        int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
-                        cv::rectangle(cvimage, cv::Point(obj.left - 3, obj.top - 33), cv::Point(obj.left + width, obj.top), cv::Scalar(b, g, r), -1);
-                        cv::putText(cvimage, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
-                    }
-                    // cv::imwrite(cv::format("imgs/%02d_%03d.jpg", pview->get_idd(), ++ids[pview->get_idd()]), cvimage);
-                    if (callback_)
-                    {
-                        callback_(2, (void *)&cvimage, (char *)tmp_json.dump().c_str(), sizeof(tmp_json.dump()));
-                    }
-                }
-            };
-            auto func = [&](shared_ptr<FFHDMultiCamera::View> view)
-            {
-                if (view == nullptr)
-                {
-                    INFOE("View is nullptr");
-                    return;
-                }
+                        unsigned int frame_index = 0;
 
-                view->set_callback(yolo_infer);
-                while (view->demux())
-                {
-                    // 模拟真实视频流
-                    this_thread::sleep_for(chrono::milliseconds(30));
-                }
-                INFO("Done> %d", view->get_idd());
+                        cv::Mat image(current_decoder->decoder->get_height(), current_decoder->decoder->get_width(), CV_8UC3, current_decoder->decoder->get_frame(&pts, &frame_index));
+                        frame_index = frame_index + 1;
+                        // INFO("write imgs/img_%05d.jpg  %dx%d", frame_index, image.cols, image.rows);
+                        // cv::imwrite(cv::format("imgs/img_%05d.jpg", frame_index), image);
+                    }
+                } while (packet_size > 0);
             };
-            for (const auto &uri : uris)
+            for (auto const &uri : uris)
             {
-                ts_.emplace_back(bind(func, decoder_->make_view(uri)));
+                uris_.emplace_back(uri);
+                auto decoder = make_shared<DecoderWrapper>(uri);
+                decoders_.emplace_back(decoder);
+                if (decoder->is_valid)
+                {
+                    ;
+                }
             }
         }
         virtual void disconnect_views(const vector<string> &dis_uris) override
         {
-            // 先停掉所有的views
-            stop_signal_ = true;
-            for (auto &t : ts_)
-                t.join();
-            ts_.clear();
-            decoder_.reset();
-            decoder_ = FFHDMultiCamera::create_decoder(use_device_frame_, -1, gpu_);
-            // 重新启动views
-            vector<string> new_uris;
-            for (auto &s : uris_)
-            {
-                if (find(dis_uris.begin(), dis_uris.end(), s) == dis_uris.end())
-                    new_uris.emplace_back(s);
-            }
-            uris_.clear();
-            make_views(new_uris);
+            ;
         }
         virtual void set_callback(ai_callback callback) override
         {
             callback_ = callback;
         }
-        virtual vector<string> get_uris_() const override
+        virtual void get_uris(vector<string> &current_uris) const override
         {
-            return uris_;
+            for (const auto &x : uris_)
+                current_uris.emplace_back(x);
         }
 
         virtual bool startup(const string &engile_file, int gpuid, bool use_device_frame)
         {
-            yolo_pose_ = YoloGPUPtr::create_infer(engile_file, YoloGPUPtr::Type::V5, gpuid);
+            yolo_pose_ = get_yolo(YoloGPUPtr::Type::V5, TRT::Mode::FP32, engile_file, gpuid);
+            // yolo_pose_ = YoloGPUPtr::create_infer(engile_file, YoloGPUPtr::Type::V5, gpuid);
             if (yolo_pose_ == nullptr)
             {
                 INFOE("create tensorrt engine failed.");
-                return false;
-            }
-            decoder_ = FFHDMultiCamera::create_decoder(use_device_frame, -1, gpuid);
-            if (decoder_ == nullptr)
-            {
-                INFO("create decoder failed.");
                 return false;
             }
             // use_device_frame_ = use_device_frame_;
@@ -146,10 +226,10 @@ namespace Pipeline
         int gpu_ = 0;
         bool use_device_frame_ = true;
         shared_ptr<YoloGPUPtr::Infer> yolo_pose_;
-        shared_ptr<FFHDMultiCamera::Decoder> decoder_;
+        // shared_ptr<FFHDMultiCamera::Decoder> decoder_;
+        vector<shared_ptr<DecoderWrapper>> decoders_;
         vector<thread> ts_;
-        vector<string> uris_;
-        vector<int> ids_;
+        vector<string> uris_{};
         atomic<bool> stop_signal_{false};
         ai_callback callback_;
     };
