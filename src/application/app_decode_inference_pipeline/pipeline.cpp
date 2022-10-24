@@ -123,14 +123,22 @@ namespace Pipeline
                 auto track = tracks[i];
                 // INFO("objs[i] left is %f; track[i] left is %f; _tlwh[i] is %f", objs[i].left, track.tlwh[0], track._tlwh[0]);
                 string event_string = "";
+                // 分类模型
                 if (track.tlwh[2] > track.tlwh[3])
                 {
                     event_string = "falldown";
+                }
+                vector<float> pose(objs[i].pose, objs[i].pose + 51);
+                // 手高于肩
+                if ((pose[17 + 9] < pose[17 + 5]) && (pose[17 + 10] < pose[17 + 6]))
+                {
+                    event_string = "pickup";
                 }
                 nlohmann::json event_json = {
                     {"id", track.track_id},
                     {"event", event_string},
                     {"box", {track.tlwh[0], track.tlwh[1], track.tlwh[2] + track.tlwh[0], track.tlwh[3] + track.tlwh[1]}},
+                    {"pose", pose},
                     {"entertime", ""},
                     {"outtime", ""},
                     {"score", track.score}};
