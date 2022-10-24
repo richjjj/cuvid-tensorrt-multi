@@ -64,6 +64,9 @@
         "typeinfo": "cpp",
         "valarray": "cpp",
         "bitset": "cpp",
-        "__nullptr": "cpp"
+        "__nullptr": "cpp",
+        "queue": "cpp",
+        "stack": "cpp",
+        "__split_buffer": "cpp"
     }
 }

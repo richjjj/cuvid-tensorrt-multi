@@ -56,6 +56,7 @@ include_paths := src    \
 	src/tensorRT        \
 	src/tensorRT/common \
 	src/application     \
+	src/application/track     \
 	$(include_cuvid)       
 
 # 定义库文件路径，只需要写路径，不需要写-L

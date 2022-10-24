@@ -7,8 +7,28 @@
 #include <atomic>
 #include <vector>
 #include "builder/trt_builder.hpp"
+#include "track/bytetrack/BYTETracker.h"
+#include <map>
 namespace Pipeline
 {
+    vector<Object> det2tracks(const ObjectDetector::BoxArray &array)
+    {
+
+        vector<Object> outputs;
+        for (int i = 0; i < array.size(); ++i)
+        {
+            auto &abox = array[i];
+            Object obox;
+            obox.prob = abox.confidence;
+            obox.label = abox.class_label;
+            obox.rect[0] = abox.left;
+            obox.rect[1] = abox.top;
+            obox.rect[2] = abox.right - abox.left;
+            obox.rect[3] = abox.bottom - abox.top;
+            outputs.emplace_back(obox);
+        }
+        return outputs;
+    }
     static shared_ptr<YoloGPUPtr::Infer> get_yolo(YoloGPUPtr::Type type, TRT::Mode mode, const string &model, int device_id)
     {
 
@@ -88,23 +108,23 @@ namespace Pipeline
             auto objs = yolo_pose_->commit(image).get();
             // ObjectDetector::BoxArray objs;
             nlohmann::json tmp_json;
-            int current_id = pview->get_idd();
-            tmp_json["cameraId"] = current_id;
+            // int current_id = pview->get_idd();
+            string current_name = pview->get_name();
+            tmp_json["cameraId"] = current_name;
             tmp_json["freshTime"] = timestamp; // 时间戳，表示当前的帧数
             tmp_json["events"] = nlohmann::json::array();
+
             // 有人就保存
-            cv::Mat cvimage(height, width, CV_8UC3);
-            cudaMemcpyAsync(cvimage.data, pimage_data, width * height * 3, cudaMemcpyDeviceToHost, stream);
-            cudaStreamSynchronize(stream);
-            for (auto &obj : objs)
+            auto tracks = trackers_[current_name]->update(det2tracks(objs));
+            for (auto &track : tracks)
             {
                 nlohmann::json event_json = {
-                    {"id", 0},
+                    {"id", track.track_id},
                     {"event", "falldown"},
-                    {"box", {obj.left, obj.top, obj.right, obj.bottom}},
+                    {"box", {track.tlwh[0], track.tlwh[1], track.tlwh[2], track.tlwh[3]}},
                     {"entertime", ""},
                     {"outtime", ""},
-                    {"score", obj.confidence}};
+                    {"score", track.score}};
 
                 tmp_json["events"].emplace_back(event_json);
                 // uint8_t b, g, r;
@@ -116,6 +136,9 @@ namespace Pipeline
                 // cv::putText(cvimage, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
             }
             // cv::imwrite(cv::format("imgs/%02d_%03d.jpg", pview->get_idd(), ++ids[pview->get_idd()]), cvimage);
+            cv::Mat cvimage(height, width, CV_8UC3);
+            cudaMemcpyAsync(cvimage.data, pimage_data, width * height * 3, cudaMemcpyDeviceToHost, stream);
+            cudaStreamSynchronize(stream);
             if (callback_)
             {
                 callback_(2, (void *)&cvimage, (char *)tmp_json.dump().c_str(), tmp_json.dump().size());
@@ -151,6 +174,13 @@ namespace Pipeline
             for (const auto &uri : uris)
             {
                 uris_.emplace_back(uri);
+                // BYTETracker tracker;
+                trackers_[uri] = make_shared<BYTETracker>();
+                trackers_[uri]->config().set_initiate_state({0.1, 0.1, 0.1, 0.1,
+                                                             0.2, 0.2, 1, 0.2})
+                    .set_per_frame_motion({0.1, 0.1, 0.1, 0.1,
+                                           0.2, 0.2, 1, 0.2})
+                    .set_max_time_lost(150);
                 ts_.emplace_back(bind(func, decoder_->make_view(uri)));
             }
         }
@@ -211,6 +241,7 @@ namespace Pipeline
         bool use_device_frame_ = true;
         shared_ptr<YoloGPUPtr::Infer> yolo_pose_;
         shared_ptr<FFHDMultiCamera::Decoder> decoder_;
+        map<string, shared_ptr<BYTETracker>> trackers_;
         vector<thread> ts_;
         vector<string> uris_{};
         atomic<bool> stop_signal_{false};

@@ -39,11 +39,12 @@ namespace FFHDMultiCamera
     class ViewImpl : public View
     {
     public:
-        ViewImpl(DecoderImpl *multi_camera_decoder, shared_ptr<FFHDDemuxer::FFmpegDemuxer> demuxer, int idd)
+        ViewImpl(DecoderImpl *multi_camera_decoder, shared_ptr<FFHDDemuxer::FFmpegDemuxer> demuxer, int idd, const string &name)
         {
             decoder_ = multi_camera_decoder;
             demuxer_ = demuxer;
             idd_ = idd;
+            name_ = name;
         }
 
         virtual void set_callback(decode_callback callback) override { callback_ = callback; }
@@ -61,12 +62,14 @@ namespace FFHDMultiCamera
         virtual shared_ptr<FFHDDemuxer::FFmpegDemuxer> get_demuxer() override { return demuxer_; }
         virtual bool demux(bool only_push_keyframe = false) override;
         virtual int get_idd() override { return idd_; }
+        virtual string get_name() override { return name_; }
 
     private:
         decode_callback callback_;
         shared_ptr<FFHDDemuxer::FFmpegDemuxer> demuxer_;
         DecoderImpl *decoder_ = nullptr;
         int idd_ = 0;
+        string name_{};
     };
 
     class DecoderImpl : public Decoder
@@ -146,7 +149,7 @@ namespace FFHDMultiCamera
                 return nullptr;
             }
 
-            auto view = make_shared<ViewImpl>(this, demuxer, views_.size());
+            auto view = make_shared<ViewImpl>(this, demuxer, views_.size(), uri);
             views_.emplace_back(view);
             return view;
         }
