@@ -116,12 +116,13 @@ namespace Pipeline
 
             // 有人就保存
             auto tracks = trackers_[current_name]->update(det2tracks(objs));
+            // INFO("objs.size() : %d; tracks.size() : %d", objs.size(), tracks.size());
             for (auto &track : tracks)
             {
                 nlohmann::json event_json = {
                     {"id", track.track_id},
                     {"event", "falldown"},
-                    {"box", {track.tlwh[0], track.tlwh[1], track.tlwh[2], track.tlwh[3]}},
+                    {"box", {track.tlwh[0], track.tlwh[1], track.tlwh[2] + track.tlwh[0], track.tlwh[3] + track.tlwh[1]}},
                     {"entertime", ""},
                     {"outtime", ""},
                     {"score", track.score}};
