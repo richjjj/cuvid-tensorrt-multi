@@ -6,8 +6,55 @@
 #include "common/json.hpp"
 #include <atomic>
 #include <vector>
+#include "builder/trt_builder.hpp"
 namespace Pipeline
 {
+    static shared_ptr<YoloGPUPtr::Infer> get_yolo(YoloGPUPtr::Type type, TRT::Mode mode, const string &model, int device_id)
+    {
+
+        auto mode_name = TRT::mode_string(mode);
+        TRT::set_device(device_id);
+
+        auto int8process = [=](int current, int count, const vector<string> &files, shared_ptr<TRT::Tensor> &tensor)
+        {
+            INFO("Int8 %d / %d", current, count);
+
+            for (int i = 0; i < files.size(); ++i)
+            {
+                auto image = cv::imread(files[i]);
+                YoloGPUPtr::image_to_tensor(image, tensor, type, i);
+            }
+        };
+
+        const char *name = model.c_str();
+        INFO("===================== test %s %s %s ==================================", YoloGPUPtr::type_name(type), mode_name, name);
+
+        string onnx_file = iLogger::format("%s.onnx", name);
+        string model_file = iLogger::format("%s.%s.trtmodel", name, mode_name);
+        int test_batch_size = 16;
+
+        if (!iLogger::exists(model_file))
+        {
+            TRT::compile(
+                mode,            // FP32、FP16、INT8
+                test_batch_size, // max batch size
+                onnx_file,       // source
+                model_file,      // save to
+                {},
+                int8process,
+                "inference");
+        }
+
+        return YoloGPUPtr::create_infer(
+            model_file,                     // engine file
+            type,                           // yolo type, YoloGPUPtr::Type::V5 / YoloGPUPtr::Type::X
+            device_id,                      // gpu id
+            0.25f,                          // confidence threshold
+            0.45f,                          // nms threshold
+            YoloGPUPtr::NMSMethod::FastGPU, // NMS method, fast GPU / CPU
+            1024                            // max objects
+        );
+    }
     class PipelineImpl : public Pipeline
     {
     public:
@@ -138,7 +185,8 @@ namespace Pipeline
 
         virtual bool startup(const string &engile_file, int gpuid, bool use_device_frame)
         {
-            yolo_pose_ = YoloGPUPtr::create_infer(engile_file, YoloGPUPtr::Type::V5, gpuid);
+            yolo_pose_ = get_yolo(YoloGPUPtr::Type::V5, TRT::Mode::FP32, engile_file, gpuid);
+            // yolo_pose_ = YoloGPUPtr::create_infer(engile_file, YoloGPUPtr::Type::V5, gpuid);
             if (yolo_pose_ == nullptr)
             {
                 INFOE("create tensorrt engine failed.");

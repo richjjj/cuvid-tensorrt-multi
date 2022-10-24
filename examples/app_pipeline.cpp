@@ -16,7 +16,7 @@ void test_pipeline()
 {
     // iLogger::rmtree("imgs");
     // iLogger::mkdir("imgs");
-    std::string engine_file = "yolov5s_pose.FP32.trtmodel";
+    std::string model_name = "yolov5s_pose";
     std::vector<std::string> uris{"exp/39.mp4", "exp/37.mp4", "exp/38.mp4", "exp/37.mp4", "exp/38.mp4"};
     // for (int i = 0; i < 64; ++i)
     // {
@@ -28,7 +28,7 @@ void test_pipeline()
     //         uris.emplace_back("exp/pig.mp4");
     // }
 
-    auto pipeline = Pipeline::create_pipeline(engine_file);
+    auto pipeline = Pipeline::create_pipeline(model_name);
     std::vector<std::string> current_uris{};
 
     if (pipeline == nullptr)

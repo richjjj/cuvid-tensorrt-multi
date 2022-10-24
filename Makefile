@@ -44,7 +44,7 @@ include_protobuf  := $(cpp_pkg)/protobuf/include
 include_cuvid     := $(cpp_pkg)/cuvid/include
 include_opencv    := /usr/local/include/opencv4
 
-lib_all        := $(cuda_home)/lib64 $(cpp_pkg)/protobuf/lib $(cpp_pkg)/cuvid/lib $(syslib) /lib/x86_64-linux-gnu
+lib_all        := $(cuda_home)/lib64 $(cpp_pkg)/protobuf/lib $(syslib) /lib/x86_64-linux-gnu
 
 # 定义头文件路径，请注意斜杠后边不能有空格
 # 只需要写路径，不需要写-I
