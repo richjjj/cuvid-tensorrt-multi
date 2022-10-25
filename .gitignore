@@ -8,3 +8,4 @@ workspace/libpro.so
 *.trtmodel
 *.onnx
 !yolov5s_pose.onnx
+compile_commands.json

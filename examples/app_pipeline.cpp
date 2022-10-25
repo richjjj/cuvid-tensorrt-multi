@@ -3,10 +3,7 @@
 #include <iostream>
 // #include <opencv2/opencv.hpp>
 
-void callback(int callbackType,
-              void *img,
-              char *data,
-              int datalen)
+void callback(int callbackType, void *img, char *data, int datalen)
 {
     // std::cout << "callbackType is " << callbackType << std::endl;
     // std::cout << "datalen is : " << datalen << std::endl;
@@ -14,10 +11,13 @@ void callback(int callbackType,
 }
 void test_pipeline()
 {
+    if (true)
+        int a;
     // iLogger::rmtree("imgs");
     // iLogger::mkdir("imgs");
     std::string model_name = "yolov5s_pose";
-    std::vector<std::string> uris{"exp/39.mp4", "exp/37.mp4", "exp/38.mp4", "exp/37.mp4", "exp/38.mp4"};
+    std::vector<std::string> uris{"exp/39.mp4", "exp/37.mp4", "exp/38.mp4",
+                                  "exp/37.mp4", "exp/38.mp4"};
     // for (int i = 0; i < 64; ++i)
     // {
     //     if (i % 3 == 0)
@@ -33,6 +33,7 @@ void test_pipeline()
 
     if (pipeline == nullptr)
     {
+        int *a;
         std::cout << "pipeline create failed" << std::endl;
         return;
     }

@@ -1,14 +1,14 @@
 #include "pipeline.hpp"
 #include "app_yolo_gpuptr/yolo_gpuptr.hpp"
-#include "ffhdd/multi-camera.hpp"
-#include "common/ilogger.hpp"
-#include "common/cuda_tools.hpp"
-#include "common/json.hpp"
-#include <atomic>
-#include <vector>
 #include "builder/trt_builder.hpp"
+#include "common/cuda_tools.hpp"
+#include "common/ilogger.hpp"
+#include "common/json.hpp"
+#include "ffhdd/multi-camera.hpp"
 #include "track/bytetrack/BYTETracker.h"
+#include <atomic>
 #include <map>
+#include <vector>
 namespace Pipeline
 {
     vector<Object> det2tracks(const ObjectDetector::BoxArray &array)
@@ -106,6 +106,7 @@ namespace Pipeline
                 stream,
                 YoloGPUPtr::ImageType::GPUBGR);
             auto objs = yolo_pose_->commit(image).get();
+
             // ObjectDetector::BoxArray objs;
             nlohmann::json tmp_json;
             // int current_id = pview->get_idd();
@@ -113,7 +114,6 @@ namespace Pipeline
             tmp_json["cameraId"] = current_name;
             tmp_json["freshTime"] = timestamp; // 时间戳，表示当前的帧数
             tmp_json["events"] = nlohmann::json::array();
-
             // 有人就保存
             // TODO, 训练摔倒、等GCN分类识别模型
             auto tracks = trackers_[current_name]->update(det2tracks(objs));
@@ -130,7 +130,8 @@ namespace Pipeline
                 }
                 vector<float> pose(objs[i].pose, objs[i].pose + 51);
                 // 手高于肩
-                if ((pose[17 + 9] < pose[17 + 5]) && (pose[17 + 10] < pose[17 + 6]))
+                // xyzxyz
+                if ((pose[9 * 3 + 1] < pose[5 * 3 + 1]) && (pose[10 * 3 + 1] < pose[6 * 3 + 1]))
                 {
                     event_string = "pickup";
                 }

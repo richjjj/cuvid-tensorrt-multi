@@ -67,6 +67,13 @@
         "__nullptr": "cpp",
         "queue": "cpp",
         "stack": "cpp",
-        "__split_buffer": "cpp"
-    }
+        "__split_buffer": "cpp",
+        "ios": "cpp"
+    },
+    "editor.formatOnSave": true,
+    "C_Cpp.autocomplete": "Default",
+    "C_Cpp.intelliSenseEngine": "Default",
+    "C_Cpp.errorSquiggles": "Enabled",
+    "C_Cpp.formatting": "Default",
+    "C_Cpp.clang_format_sortIncludes": true
 }
