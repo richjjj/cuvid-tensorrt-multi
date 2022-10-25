@@ -135,7 +135,12 @@ namespace Pipeline
             decoder->decode(packet_data, packet_size);
             do
             {
-                demuxer->demux(&packet_data, &packet_size, &pts);
+                bool flag = demuxer->demux(&packet_data, &packet_size, &pts);
+                if (!flag)
+                {
+                    INFOW("diconnected will be reopened.");
+                }
+                INFO("current uri is %s", uri.c_str());
                 int ndecoded_frame = decoder->decode(packet_data, packet_size, pts);
                 for (int i = 0; i < ndecoded_frame; ++i)
                 {
@@ -191,7 +196,7 @@ namespace Pipeline
                         callback_(2, (void *)&cvimage, (char *)tmp_json.dump().c_str(), tmp_json.dump().size());
                     }
                 }
-            } while (packet_size > 0);
+            } while (true > 0);
             INFO("done %s", uri.c_str());
         }
         virtual void disconnect_views(const vector<string> &dis_uris) override
