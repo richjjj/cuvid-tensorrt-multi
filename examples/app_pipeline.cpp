@@ -7,7 +7,7 @@ void callback(int callbackType, void *img, char *data, int datalen)
 {
     // std::cout << "callbackType is " << callbackType << std::endl;
     // std::cout << "datalen is : " << datalen << std::endl;
-    std::cout << "data is: " << data << std::endl;
+    // std::cout << "data is: " << data << std::endl;
 }
 void test_pipeline()
 {

@@ -192,6 +192,7 @@ namespace Pipeline
                     }
                 }
             } while (packet_size > 0);
+            INFO("done %s", uri.c_str());
         }
         virtual void disconnect_views(const vector<string> &dis_uris) override
         {
