@@ -1,17 +1,34 @@
 #include "pipeline.hpp"
 #include "app_yolo_gpuptr/yolo_gpuptr.hpp"
-#include "ffhdd/multi-camera.hpp"
-#include <ffhdd/ffmpeg-demuxer.hpp>
-#include <ffhdd/cuvid-decoder.hpp>
-#include <ffhdd/nalu.hpp>
-#include "common/ilogger.hpp"
-#include "common/cuda_tools.hpp"
-#include "common/json.hpp"
-#include <atomic>
-#include <vector>
 #include "builder/trt_builder.hpp"
+#include "common/cuda_tools.hpp"
+#include "common/ilogger.hpp"
+#include "common/json.hpp"
+#include "ffhdd/multi-camera.hpp"
+#include "track/bytetrack/BYTETracker.h"
+#include <atomic>
+#include <map>
+#include <vector>
 namespace Pipeline
 {
+    vector<Object> det2tracks(const ObjectDetector::BoxArray &array)
+    {
+
+        vector<Object> outputs;
+        for (int i = 0; i < array.size(); ++i)
+        {
+            auto &abox = array[i];
+            Object obox;
+            obox.prob = abox.confidence;
+            obox.label = abox.class_label;
+            obox.rect[0] = abox.left;
+            obox.rect[1] = abox.top;
+            obox.rect[2] = abox.right - abox.left;
+            obox.rect[3] = abox.bottom - abox.top;
+            outputs.emplace_back(obox);
+        }
+        return outputs;
+    }
     static shared_ptr<YoloGPUPtr::Infer> get_yolo(YoloGPUPtr::Type type, TRT::Mode mode, const string &model, int device_id)
     {
 
@@ -58,37 +75,6 @@ namespace Pipeline
             1024                            // max objects
         );
     }
-    struct DecoderWrapper
-    {
-        shared_ptr<FFHDDemuxer::FFmpegDemuxer> demuxer;
-        shared_ptr<FFHDDecoder::CUVIDDecoder> decoder;
-        uint8_t *packet_data = nullptr;
-        int packet_size = 0;
-        uint64_t pts = 0;
-        bool is_valid = false;
-        string uri_{};
-        DecoderWrapper() = default;
-        DecoderWrapper(const string &uri)
-        {
-            uri_ = uri;
-            demuxer = FFHDDemuxer::create_ffmpeg_demuxer(uri);
-            if (demuxer == nullptr)
-            {
-                INFOE("demuxer create failed");
-                is_valid = false;
-                return;
-            }
-            decoder = FFHDDecoder::create_cuvid_decoder(
-                true, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()), -1, 0);
-            if (decoder == nullptr)
-            {
-                INFOE("decoder create failed");
-                is_valid = false;
-                return;
-            }
-            is_valid = true;
-        }
-    };
     class PipelineImpl : public Pipeline
     {
     public:
@@ -120,25 +106,43 @@ namespace Pipeline
                 stream,
                 YoloGPUPtr::ImageType::GPUBGR);
             auto objs = yolo_pose_->commit(image).get();
+
             // ObjectDetector::BoxArray objs;
             nlohmann::json tmp_json;
-            int current_id = pview->get_idd();
-            tmp_json["cameraId"] = current_id;
+            // int current_id = pview->get_idd();
+            string current_name = pview->get_name();
+            tmp_json["cameraId"] = current_name;
             tmp_json["freshTime"] = timestamp; // 时间戳，表示当前的帧数
             tmp_json["events"] = nlohmann::json::array();
             // 有人就保存
-            cv::Mat cvimage(height, width, CV_8UC3);
-            cudaMemcpyAsync(cvimage.data, pimage_data, width * height * 3, cudaMemcpyDeviceToHost, stream);
-            cudaStreamSynchronize(stream);
-            for (auto &obj : objs)
+            // TODO, 训练摔倒、等GCN分类识别模型
+            auto tracks = trackers_[current_name]->update(det2tracks(objs));
+            // INFO("objs.size() : %d; tracks.size() : %d", objs.size(), tracks.size());
+            for (int i = 0; i < tracks.size(); i++)
             {
+                auto track = tracks[i];
+                // INFO("objs[i] left is %f; track[i] left is %f; _tlwh[i] is %f", objs[i].left, track.tlwh[0], track._tlwh[0]);
+                string event_string = "";
+                // 分类模型
+                if (track.tlwh[2] > track.tlwh[3])
+                {
+                    event_string = "falldown";
+                }
+                vector<float> pose(objs[i].pose, objs[i].pose + 51);
+                // 手高于肩
+                // xyzxyz
+                if ((pose[9 * 3 + 1] < pose[5 * 3 + 1]) && (pose[10 * 3 + 1] < pose[6 * 3 + 1]))
+                {
+                    event_string = "pickup";
+                }
                 nlohmann::json event_json = {
-                    {"id", 0},
-                    {"event", "falldown"},
-                    {"box", {obj.left, obj.top, obj.right, obj.bottom}},
+                    {"id", track.track_id},
+                    {"event", event_string},
+                    {"box", {track.tlwh[0], track.tlwh[1], track.tlwh[2] + track.tlwh[0], track.tlwh[3] + track.tlwh[1]}},
+                    {"pose", pose},
                     {"entertime", ""},
                     {"outtime", ""},
-                    {"score", obj.confidence}};
+                    {"score", track.score}};
 
                 tmp_json["events"].emplace_back(event_json);
                 // uint8_t b, g, r;
@@ -150,6 +154,9 @@ namespace Pipeline
                 // cv::putText(cvimage, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
             }
             // cv::imwrite(cv::format("imgs/%02d_%03d.jpg", pview->get_idd(), ++ids[pview->get_idd()]), cvimage);
+            cv::Mat cvimage(height, width, CV_8UC3);
+            cudaMemcpyAsync(cvimage.data, pimage_data, width * height * 3, cudaMemcpyDeviceToHost, stream);
+            cudaStreamSynchronize(stream);
             if (callback_)
             {
                 callback_(2, (void *)&cvimage, (char *)tmp_json.dump().c_str(), tmp_json.dump().size());
@@ -157,43 +164,62 @@ namespace Pipeline
         }
         virtual void make_views(const vector<string> &uris) override
         {
-            auto func = [&](shared_ptr<DecoderWrapper> current_decoder)
+            auto func = [&](shared_ptr<FFHDMultiCamera::View> view)
             {
-                auto &packet_size = current_decoder->packet_size;
-                auto &packet_data = current_decoder->packet_data;
-                auto &pts = current_decoder->pts;
-
-                current_decoder->demuxer->get_extra_data(&packet_data, &packet_size);
-                current_decoder->decoder->decode(packet_data, packet_size);
-                do
+                if (view == nullptr)
                 {
-                    current_decoder->demuxer->demux(&packet_data, &packet_size, &pts);
-                    int ndecoded_frame = current_decoder->decoder->decode(packet_data, packet_size, pts);
-                    for (int i = 0; i < ndecoded_frame; ++i)
-                    {
-                        unsigned int frame_index = 0;
-
-                        cv::Mat image(current_decoder->decoder->get_height(), current_decoder->decoder->get_width(), CV_8UC3, current_decoder->decoder->get_frame(&pts, &frame_index));
-                        frame_index = frame_index + 1;
-                        // INFO("write imgs/img_%05d.jpg  %dx%d", frame_index, image.cols, image.rows);
-                        // cv::imwrite(cv::format("imgs/img_%05d.jpg", frame_index), image);
-                    }
-                } while (packet_size > 0);
+                    INFOE("View is nullptr");
+                    return;
+                }
+                auto call_yolo_infer = [&](FFHDMultiCamera::View *pview,
+                                           uint8_t *pimage_data, int device_id, int width, int height,
+                                           FFHDDecoder::FrameType type, uint64_t timestamp,
+                                           FFHDDecoder::ICUStream stream)
+                {
+                    this->yolo_infer(pview, pimage_data, device_id, width, height,
+                                     type, timestamp,
+                                     stream);
+                };
+                view->set_callback(call_yolo_infer);
+                while (view->demux())
+                {
+                    // 模拟真实视频流
+                    this_thread::sleep_for(chrono::milliseconds(30));
+                }
+                INFO("Done> %d", view->get_idd());
             };
-            for (auto const &uri : uris)
+
+            for (const auto &uri : uris)
             {
                 uris_.emplace_back(uri);
-                auto decoder = make_shared<DecoderWrapper>(uri);
-                decoders_.emplace_back(decoder);
-                if (decoder->is_valid)
-                {
-                    ;
-                }
+                // BYTETracker tracker;
+                trackers_[uri] = make_shared<BYTETracker>();
+                trackers_[uri]->config().set_initiate_state({0.1, 0.1, 0.1, 0.1,
+                                                             0.2, 0.2, 1, 0.2})
+                    .set_per_frame_motion({0.1, 0.1, 0.1, 0.1,
+                                           0.2, 0.2, 1, 0.2})
+                    .set_max_time_lost(150);
+                ts_.emplace_back(bind(func, decoder_->make_view(uri)));
             }
         }
         virtual void disconnect_views(const vector<string> &dis_uris) override
         {
-            ;
+            // 先停掉所有的views
+            stop_signal_ = true;
+            for (auto &t : ts_)
+                t.join();
+            ts_.clear();
+            decoder_.reset();
+            decoder_ = FFHDMultiCamera::create_decoder(use_device_frame_, -1, gpu_);
+            // 重新启动views
+            vector<string> new_uris;
+            for (auto &s : uris_)
+            {
+                if (find(dis_uris.begin(), dis_uris.end(), s) == dis_uris.end())
+                    new_uris.emplace_back(s);
+            }
+            uris_.clear();
+            make_views(new_uris);
         }
         virtual void set_callback(ai_callback callback) override
         {
@@ -214,6 +240,12 @@ namespace Pipeline
                 INFOE("create tensorrt engine failed.");
                 return false;
             }
+            decoder_ = FFHDMultiCamera::create_decoder(use_device_frame, -1, gpuid);
+            if (decoder_ == nullptr)
+            {
+                INFO("create decoder failed.");
+                return false;
+            }
             // use_device_frame_ = use_device_frame_;
             // gpu_ = gpu_;
             for (int i = 0; i < 10; ++i)
@@ -226,8 +258,8 @@ namespace Pipeline
         int gpu_ = 0;
         bool use_device_frame_ = true;
         shared_ptr<YoloGPUPtr::Infer> yolo_pose_;
-        // shared_ptr<FFHDMultiCamera::Decoder> decoder_;
-        vector<shared_ptr<DecoderWrapper>> decoders_;
+        shared_ptr<FFHDMultiCamera::Decoder> decoder_;
+        map<string, shared_ptr<BYTETracker>> trackers_;
         vector<thread> ts_;
         vector<string> uris_{};
         atomic<bool> stop_signal_{false};
