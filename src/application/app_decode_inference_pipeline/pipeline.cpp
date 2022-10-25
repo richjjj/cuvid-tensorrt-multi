@@ -105,7 +105,7 @@ namespace Pipeline
         }
         virtual void worker(const string &uri)
         {
-            auto demuxer = FFHDDemuxer::create_ffmpeg_demuxer(uri);
+            auto demuxer = FFHDDemuxer::create_ffmpeg_demuxer(uri, true);
             if (demuxer == nullptr)
             {
                 INFOE("demuxer create failed");
