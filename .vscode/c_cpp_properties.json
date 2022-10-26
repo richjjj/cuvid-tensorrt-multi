@@ -4,14 +4,15 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/usr/include/linux",
+                "/usr/include/linux/**",
                 "/usr/local/include/opencv4",
                 "/usr/local/cuda-11.7/targets/x86_64-linux/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/g++",
             "cppStandard": "c++14",
-            "cStandard": "gnu17"
+            "cStandard": "gnu17",
+            "intelliSenseMode": "linux-gcc-x64"
         }
     ],
     "version": 4

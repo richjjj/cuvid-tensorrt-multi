@@ -11,8 +11,6 @@ void callback(int callbackType, void *img, char *data, int datalen)
 }
 void test_pipeline()
 {
-    if (true)
-        int a;
     // iLogger::rmtree("imgs");
     // iLogger::mkdir("imgs");
     std::string model_name = "yolov5s_pose";
