@@ -198,12 +198,6 @@ namespace FFHDDemuxer
                 if (auto_reboot_)
                 {
                     bool open_ok = this->reopen();
-                    while (!open_ok)
-                    {
-                        open_ok = this->reopen();
-                        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-                    }
-
                     if (!open_ok)
                     {
                         INFOE("Reopen failed.");

@@ -9,6 +9,7 @@
 
 #include "track/bytetrack/BYTETracker.h"
 #include <atomic>
+#include <chrono>
 #include <vector>
 
 namespace Pipeline
@@ -139,6 +140,12 @@ namespace Pipeline
                 if (!flag)
                 {
                     INFOW("diconnected will be reopened.");
+                    while (!flag)
+                    {
+                        this_thread::sleep_for(chrono::milliseconds(200));
+                        flag = demuxer->reopen();
+                    }
+                    INFOW("reopen successed.");
                 }
                 INFO("current uri is %s", uri.c_str());
                 int ndecoded_frame = decoder->decode(packet_data, packet_size, pts);
