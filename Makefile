@@ -1,5 +1,6 @@
 cc        := g++
-name      := libpro.so
+short_name:= pro
+name      := lib$(short_name).so
 example   := example
 workdir   := workspace
 srcdir    := src
@@ -121,7 +122,7 @@ $(workdir)/$(name) : $(cpp_objs) $(cu_objs)
 $(workdir)/$(example) : $(cpp_objs_example)
 	@echo Link $@
 	@mkdir -p $(dir $@)
-	@$(cc) $^ -o $@ $(link_flags) -L$(workdir) -lpro
+	@$(cc) $^ -o $@ $(link_flags) -L$(workdir) -l$(short_name)
 
 $(objdir)/%.cpp.o : $(srcdir)/%.cpp
 	@echo Compile CXX $<
