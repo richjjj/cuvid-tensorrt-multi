@@ -190,7 +190,8 @@ namespace Pipeline
                             nlohmann::json event_json = {
                                 {"id", track.track_id},
                                 {"event", event_string},
-                                {"box", {track.tlwh[0], track.tlwh[1], track.tlwh[2] + track.tlwh[0], track.tlwh[3] + track.tlwh[1]}},
+                                // {"box", {track.tlwh[0], track.tlwh[1], track.tlwh[2] + track.tlwh[0], track.tlwh[3] + track.tlwh[1]}},
+                                {"box", {objs[i].left, objs[i].top, objs[i].right, objs[i].bottom}},
                                 {"pose", pose},
                                 {"entertime", ""},
                                 {"outtime", ""},
