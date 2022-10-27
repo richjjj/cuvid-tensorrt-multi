@@ -1,16 +1,16 @@
 
-#include <opencv2/opencv.hpp>
 #include <common/ilogger.hpp>
-#include <ffhdd/ffmpeg-demuxer.hpp>
 #include <ffhdd/cuvid-decoder.hpp>
+#include <ffhdd/ffmpeg-demuxer.hpp>
 #include <ffhdd/nalu.hpp>
+#include <opencv2/opencv.hpp>
 
 using namespace std;
 
 static void test_hard_decode()
 {
 
-    auto demuxer = FFHDDemuxer::create_ffmpeg_demuxer("exp/number100.mp4");
+    auto demuxer = FFHDDemuxer::create_ffmpeg_demuxer("exp/37.mp4");
     if (demuxer == nullptr)
     {
         INFOE("demuxer create failed");
@@ -30,12 +30,12 @@ static void test_hard_decode()
     int packet_size = 0;
     uint64_t pts = 0;
 
+    // get_extra_data 不是非必须的
     demuxer->get_extra_data(&packet_data, &packet_size);
     decoder->decode(packet_data, packet_size);
 
     iLogger::rmtree("imgs");
     iLogger::mkdir("imgs");
-
     do
     {
         demuxer->demux(&packet_data, &packet_size, &pts);
@@ -43,7 +43,6 @@ static void test_hard_decode()
         for (int i = 0; i < ndecoded_frame; ++i)
         {
             unsigned int frame_index = 0;
-
             /* 因为decoder获取的frame内存，是YUV-NV12格式的。储存内存大小是 [height * 1.5] * width byte
              因此构造一个height * 1.5,  width 大小的空间
              然后由opencv函数，把YUV-NV12转换到BGR，转换后的image则是正常的height, width, CV_8UC3

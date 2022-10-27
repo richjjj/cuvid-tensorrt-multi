@@ -107,20 +107,20 @@ namespace Pipeline
         virtual void worker(const string &uri)
         {
             auto demuxer = FFHDDemuxer::create_ffmpeg_demuxer(uri, true);
-            if (demuxer == nullptr)
-            {
-                INFOE("demuxer create failed");
-                return;
-            }
+            // if (demuxer == nullptr)
+            // {
+            //     INFOE("demuxer create failed");
+            //     return;
+            // }
 
             auto decoder = FFHDDecoder::create_cuvid_decoder(
                 use_device_frame_, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()), -1, gpu_);
 
-            if (decoder == nullptr)
-            {
-                INFOE("decoder create failed");
-                return;
-            }
+            // if (decoder == nullptr)
+            // {
+            //     INFOE("decoder create failed");
+            //     return;
+            // }
             BYTETracker tracker;
             tracker.config().set_initiate_state({0.1, 0.1, 0.1, 0.1,
                                                  0.2, 0.2, 1, 0.2})
@@ -132,8 +132,8 @@ namespace Pipeline
             int packet_size = 0;
             uint64_t pts = 0;
 
-            demuxer->get_extra_data(&packet_data, &packet_size);
-            decoder->decode(packet_data, packet_size);
+            // demuxer->get_extra_data(&packet_data, &packet_size);
+            // decoder->decode(packet_data, packet_size);
             do
             {
                 bool flag = demuxer->demux(&packet_data, &packet_size, &pts);
@@ -144,6 +144,8 @@ namespace Pipeline
                     {
                         this_thread::sleep_for(chrono::milliseconds(200));
                         flag = demuxer->reopen();
+                        decoder = FFHDDecoder::create_cuvid_decoder(
+                            use_device_frame_, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()), -1, gpu_);
                     }
                     INFOW("reopen successed.");
                 }
