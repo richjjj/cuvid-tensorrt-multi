@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.cpp": "cpp",
         "atomic": "cpp",
         "*.tcc": "cpp",
         "deque": "cpp",
@@ -75,7 +76,7 @@
     "C_Cpp.intelliSenseEngine": "Default",
     "C_Cpp.errorSquiggles": "Enabled",
     "C_Cpp.formatting": "Default",
-    "C_Cpp.clang_format_sortIncludes": true,
+    "C_Cpp.clang_format_sortIncludes": false,
     "editor.formatOnType": true,
     "C_Cpp.default.cppStandard": "c++14",
     "C_Cpp.default.cStandard": "c11",
