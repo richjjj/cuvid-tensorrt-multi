@@ -76,39 +76,50 @@ static shared_ptr<YoloGPUPtr::Infer> get_yolo(YoloGPUPtr::Type type, TRT::Mode m
 class PipelineImpl : public Pipeline {
 public:
     virtual ~PipelineImpl() {
-        for (auto &t : ts_)
-            t.join();
-        // decoder_->join();
-        INFO("pipeline done.");
+        join();
     }
     virtual void join() override {
-        for (auto &t : ts_)
-            t.join();
-        // decoder_->join();
+        for (auto &t : ts_) {
+            if (t.joinable())
+                t.join();
+        }
         INFO("pipeline done.");
     }
-    virtual void make_views(const vector<string> &uris) override {
-        for (const auto &uri : uris) {
+
+    virtual bool make_view(const string &uri, size_t timeout) override {
+        promise<bool> pro;
+        ts_.emplace_back(thread(&PipelineImpl::worker, this, uri, ref(pro)));
+        bool state = pro.get_future().get();
+        if (state)
             uris_.emplace_back(uri);
-            ts_.emplace_back(thread(&PipelineImpl::worker, this, uri));
-        }
+        else
+            INFOE("The uri connection is refused.");
+        return state;
     }
-    virtual void worker(const string &uri) {
+    virtual vector<bool> make_views(const vector<string> &uris, size_t timeout) override {
+        vector<bool> out;
+        for (const auto &uri : uris) {
+            out.emplace_back(make_view(uri, timeout));
+        }
+        return out;
+    }
+    virtual void worker(const string &uri, promise<bool> &state) {
         auto demuxer = FFHDDemuxer::create_ffmpeg_demuxer(uri, true);
-        // if (demuxer == nullptr)
-        // {
-        //     INFOE("demuxer create failed");
-        //     return;
-        // }
+        if (demuxer == nullptr) {
+            INFOE("demuxer create failed");
+            state.set_value(false);
+            return;
+        }
 
         auto decoder = FFHDDecoder::create_cuvid_decoder(
             use_device_frame_, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()), -1, gpu_);
 
-        // if (decoder == nullptr)
-        // {
-        //     INFOE("decoder create failed");
-        //     return;
-        // }
+        if (decoder == nullptr) {
+            INFOE("decoder create failed");
+            state.set_value(false);
+            return;
+        }
+        state.set_value(true);
         BYTETracker tracker;
         tracker.config()
             .set_initiate_state({0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 1, 0.2})

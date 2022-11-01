@@ -13,6 +13,7 @@ void test_pipeline() {
     // iLogger::mkdir("imgs");
     std::string model_name = "yolov5s_pose";
     std::vector<std::string> uris{"exp/39.mp4", "exp/37.mp4", "exp/38.mp4", "exp/37.mp4", "exp/38.mp4"};
+    // std::vector<std::string> uris{"rtsp://admin:xmrbi123@192.168.175.232:554/Streaming/Channels/101"};
     // for (int i = 0; i < 64; ++i)
     // {
     //     if (i % 3 == 0)
@@ -33,14 +34,17 @@ void test_pipeline() {
     }
     //
     pipeline->set_callback(callback);
-    pipeline->make_views(uris);
+    auto out = pipeline->make_views(uris);
+    for (auto x : out) {
+        std::cout << x << std::endl;
+    }
 
     pipeline->get_uris(current_uris);
     for (auto u : current_uris) {
         std::cout << u << std::endl;
     }
 
-    // pipeline->join();
+    pipeline->join();
 }
 
 int app_pipeline() {

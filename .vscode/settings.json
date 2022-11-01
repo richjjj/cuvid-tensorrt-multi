@@ -69,7 +69,12 @@
         "queue": "cpp",
         "stack": "cpp",
         "__split_buffer": "cpp",
-        "ios": "cpp"
+        "ios": "cpp",
+        "__functional_base": "cpp",
+        "locale": "cpp",
+        "__hash_table": "cpp",
+        "__tree": "cpp",
+        "filesystem": "cpp"
     },
     "editor.formatOnSave": true,
     "C_Cpp.autocomplete": "Default",
