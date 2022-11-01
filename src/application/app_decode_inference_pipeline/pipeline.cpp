@@ -208,7 +208,7 @@ public:
                     callback_(2, (void *)&cvimage, (char *)tmp_json.dump().c_str(), tmp_json.dump().size());
                 }
             }
-        } while (true > 0);
+        } while (true);
         INFO("done %s", uri.c_str());
     }
     virtual void disconnect_views(const vector<string> &dis_uris) override {}

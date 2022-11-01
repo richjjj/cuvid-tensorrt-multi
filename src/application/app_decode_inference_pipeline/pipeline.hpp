@@ -14,7 +14,7 @@ using ai_callback = CallBackDataInfo;
 class Pipeline {
 public:
     // 先 set_callback 后 make_views
-    // timeout : s
+    // timeout : s， if -1 ：ignore
     virtual bool make_view(const string &uri, size_t timeout = 100)                   = 0;
     virtual vector<bool> make_views(const vector<string> &uris, size_t timeout = 100) = 0;
     virtual void set_callback(ai_callback callback)                                   = 0;
