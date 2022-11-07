@@ -1,5 +1,5 @@
 #include "pipeline.hpp"
-#include "app_yolo_gpuptr/yolo_gpuptr.hpp"
+#include "app_yolopose_gpuptr/yolo_gpuptr.hpp"
 #include "builder/trt_builder.hpp"
 #include "common/cuda_tools.hpp"
 #include "common/ilogger.hpp"
@@ -33,8 +33,8 @@ vector<Object> det2tracks(const ObjectDetector::BoxArray &array) {
     }
     return outputs;
 }
-static shared_ptr<YoloGPUPtr::Infer> get_yolo(YoloGPUPtr::Type type, TRT::Mode mode, const string &model,
-                                              int device_id) {
+static shared_ptr<YoloposeGPUPtr::Infer> get_yolo(YoloposeGPUPtr::Type type, TRT::Mode mode, const string &model,
+                                                  int device_id) {
     auto mode_name = TRT::mode_string(mode);
     TRT::set_device(device_id);
 
@@ -43,12 +43,12 @@ static shared_ptr<YoloGPUPtr::Infer> get_yolo(YoloGPUPtr::Type type, TRT::Mode m
 
         for (int i = 0; i < files.size(); ++i) {
             auto image = cv::imread(files[i]);
-            YoloGPUPtr::image_to_tensor(image, tensor, type, i);
+            YoloposeGPUPtr::image_to_tensor(image, tensor, type, i);
         }
     };
 
     const char *name = model.c_str();
-    INFO("===================== test %s %s %s ==================================", YoloGPUPtr::type_name(type),
+    INFO("===================== test %s %s %s ==================================", YoloposeGPUPtr::type_name(type),
          mode_name, name);
 
     string onnx_file    = iLogger::format("%s.onnx", name);
@@ -63,13 +63,13 @@ static shared_ptr<YoloGPUPtr::Infer> get_yolo(YoloGPUPtr::Type type, TRT::Mode m
                      {}, int8process, "inference");
     }
 
-    return YoloGPUPtr::create_infer(model_file,  // engine file
-                                    type,        // yolo type, YoloGPUPtr::Type::V5 / YoloGPUPtr::Type::X
-                                    device_id,   // gpu id
-                                    0.25f,       // confidence threshold
-                                    0.45f,       // nms threshold
-                                    YoloGPUPtr::NMSMethod::FastGPU,  // NMS method, fast GPU / CPU
-                                    1024                             // max objects
+    return YoloposeGPUPtr::create_infer(model_file,  // engine file
+                                        type,        // yolo type, YoloposeGPUPtr::Type::V5 / YoloposeGPUPtr::Type::X
+                                        device_id,   // gpu id
+                                        0.25f,       // confidence threshold
+                                        0.45f,       // nms threshold
+                                        YoloposeGPUPtr::NMSMethod::FastGPU,  // NMS method, fast GPU / CPU
+                                        1024                                 // max objects
     );
 }
 
@@ -148,9 +148,9 @@ public:
             int ndecoded_frame = decoder->decode(packet_data, packet_size, pts);
             for (int i = 0; i < ndecoded_frame; ++i) {
                 unsigned int frame_index = 0;
-                YoloGPUPtr::Image image(decoder->get_frame(&pts, &frame_index), decoder->get_width(),
-                                        decoder->get_height(), gpu_, decoder->get_stream(),
-                                        YoloGPUPtr::ImageType::GPUBGR);
+                YoloposeGPUPtr::Image image(decoder->get_frame(&pts, &frame_index), decoder->get_width(),
+                                            decoder->get_height(), gpu_, decoder->get_stream(),
+                                            YoloposeGPUPtr::ImageType::GPUBGR);
                 auto objs = yolo_pose_->commit(image).get();
                 // cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
                 // cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
@@ -222,7 +222,7 @@ public:
     virtual bool startup(const string &engile_file, int gpuid, bool use_device_frame) {
         gpu_              = gpuid;
         use_device_frame_ = use_device_frame_;
-        yolo_pose_        = get_yolo(YoloGPUPtr::Type::V5, TRT::Mode::FP32, engile_file, gpuid);
+        yolo_pose_        = get_yolo(YoloposeGPUPtr::Type::V5, TRT::Mode::FP32, engile_file, gpuid);
         if (yolo_pose_ == nullptr) {
             INFOE("create tensorrt engine failed.");
             return false;
@@ -238,7 +238,7 @@ public:
 private:
     int gpu_               = 0;
     bool use_device_frame_ = true;
-    shared_ptr<YoloGPUPtr::Infer> yolo_pose_;
+    shared_ptr<YoloposeGPUPtr::Infer> yolo_pose_;
     vector<thread> ts_;
     vector<string> uris_{};
     ai_callback callback_;
