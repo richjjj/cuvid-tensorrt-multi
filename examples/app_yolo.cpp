@@ -193,7 +193,7 @@ static void yolo_test_soft_decode() {
     yolo_render_to_images(all_boxes, name);
 }
 
-int yolo_app_yolo() {
+int app_yolo() {
     yolo_test_soft_decode();
     yolo_test_hard_decode();
     return 0;

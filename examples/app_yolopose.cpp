@@ -204,7 +204,7 @@ static void test_soft_decode() {
     render_to_images(all_boxes, name);
 }
 
-int app_yolo() {
+int app_yolopose() {
     // test_soft_decode();
     test_hard_decode();
     return 0;

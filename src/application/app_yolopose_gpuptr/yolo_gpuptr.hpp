@@ -1,5 +1,5 @@
-#ifndef YOLO_GPUPTR_HPP
-#define YOLO_GPUPTR_HPP
+#ifndef YOLOPOSE_GPUPTR_HPP
+#define YOLOPOSE_GPUPTR_HPP
 
 #include <vector>
 #include <memory>
@@ -16,7 +16,18 @@
 namespace YoloposeGPUPtr {
 
 using namespace std;
-using namespace ObjectDetector;
+// using namespace ObjectDetector;
+struct Box {
+    float left, top, right, bottom, confidence;
+    int class_label;
+    float pose[51];
+    // Box() = default;
+
+    // Box(float left, float top, float right, float bottom, float confidence, int class_label)
+    //     : left(left), top(top), right(right), bottom(bottom), confidence(confidence), class_label(class_label) {}
+};
+
+typedef std::vector<Box> BoxArray;
 
 enum class Type : int { V5 = 0, V3 = V5, X = 1 };
 
@@ -88,4 +99,4 @@ const char* type_name(Type type);
 
 };  // namespace YoloposeGPUPtr
 
-#endif  // YOLO_GPUPTR_HPP
+#endif  // YOLOPOSE_GPUPTR_HPP

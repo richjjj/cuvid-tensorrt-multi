@@ -102,6 +102,9 @@ run       : $(example)
 yolo       : $(example)
 	@cd $(workdir) && ./$(example) yolo
 
+yolopose   : $(example)
+	@cd $(workdir) && ./$(example) yolopose
+
 demuxer   : $(example)
 	@cd $(workdir) && ./$(example) demuxer
 

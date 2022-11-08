@@ -11,7 +11,7 @@ void callback(int callbackType, void *img, char *data, int datalen) {
 void test_pipeline() {
     // iLogger::rmtree("imgs");
     // iLogger::mkdir("imgs");
-    std::string model_name = "yolov5s_pose";
+    std::string model_name = "yolov5x-aqm";
     std::vector<std::string> uris{"exp/39.mp4", "exp/37.mp4", "exp/38.mp4", "exp/37.mp4", "exp/38.mp4"};
     // std::vector<std::string> uris{"rtsp://admin:xmrbi123@192.168.175.232:554/Streaming/Channels/101"};
     // for (int i = 0; i < 64; ++i)
