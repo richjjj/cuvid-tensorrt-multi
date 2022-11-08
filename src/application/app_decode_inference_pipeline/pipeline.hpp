@@ -22,7 +22,8 @@ public:
     virtual void get_uris(vector<string> &current_uris) const                         = 0;
     virtual void join()                                                               = 0;
 };
-shared_ptr<Pipeline> create_pipeline(const string &engine_file, int gpuid = 0, bool use_device_frame = true);
+shared_ptr<Pipeline> create_pipeline(const string &det_name, const string &pose_name = "", const string &gcn_name = "",
+                                     int gpuid = 0, bool use_device_frame = true);
 
 };  // namespace Pipeline
 

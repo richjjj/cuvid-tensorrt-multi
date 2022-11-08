@@ -188,79 +188,39 @@ public:
             int ndecoded_frame = decoder->decode(packet_data, packet_size, pts);
             for (int i = 0; i < ndecoded_frame; ++i) {
                 unsigned int frame_index = 0;
-                // YoloposeGPUPtr::Image image(decoder->get_frame(&pts, &frame_index), decoder->get_width(),
-                //                             decoder->get_height(), gpu_, decoder->get_stream(),
-                //                             YoloposeGPUPtr::ImageType::GPUBGR);
-                // auto objs = yolo_pose_->commit(image).get();
-                YoloGPUPtr::Image image(decoder->get_frame(&pts, &frame_index), decoder->get_width(),
-                                        decoder->get_height(), gpu_, decoder->get_stream(),
-                                        YoloGPUPtr::ImageType::GPUBGR);
-                auto objs = yolo_->commit(image).get();
-                // cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
-                // cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
-                // decoder->get_stream()); cudaStreamSynchronize(decoder->get_stream());
                 if (callback_) {
                     nlohmann::json tmp_json;
-                    // int current_id = pview->get_idd();
-                    tmp_json["cameraId"]  = uri;
-                    tmp_json["freshTime"] = pts;  // 时间戳，表示当前的帧数
-                    tmp_json["events"]    = nlohmann::json::array();
-                    for (const auto &obj : objs) {
-                        if (obj.class_label == 2) {
-                            // 吸烟
+                    tmp_json["cameraId"]     = uri;
+                    tmp_json["freshTime"]    = pts;  // 时间戳，表示当前的帧数
+                    tmp_json["det_results"]  = nlohmann::json::array();
+                    tmp_json["pose_results"] = nlohmann::json::array();
+                    tmp_json["gcn_results"]  = nlohmann::json::array();
+                    YoloGPUPtr::Image image(decoder->get_frame(&pts, &frame_index), decoder->get_width(),
+                                            decoder->get_height(), gpu_, decoder->get_stream(),
+                                            YoloGPUPtr::ImageType::GPUBGR);
+                    auto objs_future = yolo_->commit(image);
+                    if (yolo_pose_ != nullptr) {
+                        // YoloposeGPUPtr::Image poseimage(decoder->get_frame(&pts, &frame_index), decoder->get_width(),
+                        //                                 decoder->get_height(), gpu_, decoder->get_stream(),
+                        //                                 YoloposeGPUPtr::ImageType::GPUBGR);
+                        auto objs_pose = yolo_pose_->commit(image).get();
+                        for (const auto &obj_pose : objs_pose) {
+                            vector<float> pose(obj_pose.pose, obj_pose.pose + 51);
                             nlohmann::json event_json = {
-                                {"id", -1},
-                                {"event", "smoking"},
-                                {"box", {obj.left, obj.top, obj.right, obj.bottom}},
-                                // {"box", {objs[i].left, objs[i].top, objs[i].right, objs[i].bottom}},
-                                // {"pose", pose},
-                                {"entertime", ""},
-                                {"outtime", ""},
-                                {"score", obj.confidence}};
-                            tmp_json["events"].emplace_back(event_json);
+                                {"box", {obj_pose.left, obj_pose.top, obj_pose.right, obj_pose.bottom}},
+                                {"pose", pose},
+                                {"score", obj_pose.confidence}};
+                            tmp_json["pose_results"].emplace_back(event_json);
                         }
                     }
-                    // TODO, 训练摔倒、等GCN分类识别模型
-                    // auto tracks = tracker.update(det2tracks(objs));
-                    // for (int i = 0; i < tracks.size(); i++) {
-                    //     auto track          = tracks[i];
-                    //     string event_string = "";
-                    //     // 分类模型TODO
-                    //     if (track.tlwh[2] > track.tlwh[3]) {
-                    //         event_string = "falldown";
-                    //     }
-                    //     vector<float> pose(objs[i].pose, objs[i].pose + 51);
-                    //     // 手高于肩
-                    //     // xyzxyz
-                    //     if ((pose[9 * 3 + 1] < pose[5 * 3 + 1]) && (pose[10 * 3 + 1] < pose[6 * 3 + 1])) {
-                    //         event_string = "pickup";
-                    //     }
-                    //     nlohmann::json event_json = {
-                    //         {"id", track.track_id},
-                    //         {"event", event_string},
-                    //         {"box",
-                    //          {track.tlwh[0], track.tlwh[1], track.tlwh[2] + track.tlwh[0],
-                    //           track.tlwh[3] + track.tlwh[1]}},
-                    //         // {"box", {objs[i].left, objs[i].top, objs[i].right, objs[i].bottom}},
-                    //         {"pose", pose},
-                    //         {"entertime", ""},
-                    //         {"outtime", ""},
-                    //         {"score", track.score}};
-
-                    //     tmp_json["events"].emplace_back(event_json);
-                    //     // uint8_t b, g, r;
-                    //     // auto obj = objs[i];
-                    //     // tie(b, g, r) = iLogger::random_color(obj.class_label);
-                    //     // cv::rectangle(cvimage, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
-                    //     // cv::Scalar(b, g, r), 4); cv::rectangle(cvimage, cv::Point(track.tlwh[0], track.tlwh[1]),
-                    //     // cv::Point(track.tlwh[2] + track.tlwh[0], track.tlwh[3] + track.tlwh[1]), cv::Scalar(255,
-                    //     0,
-                    //     // 0), 2); auto caption = iLogger::format("%s %.2f", "person", obj.confidence); int width =
-                    //     // cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10; cv::rectangle(cvimage,
-                    //     // cv::Point(obj.left - 3, obj.top - 33), cv::Point(obj.left + width, obj.top), cv::Scalar(b,
-                    //     g,
-                    //     // r), -1);
-                    // }
+                    auto objs = objs_future.get();
+                    for (const auto &obj : objs) {
+                        nlohmann::json event_json = {{"id", -1},
+                                                     {"box", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                     {"class_label", obj.class_label},
+                                                     {"score", obj.confidence}};
+                        tmp_json["det_results"].emplace_back(event_json);
+                    }
                     cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
                     cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
                                     decoder->get_stream());
@@ -269,6 +229,7 @@ public:
                     callback_(2, (void *)&cvimage, (char *)tmp_json.dump().c_str(), tmp_json.dump().size());
                 }
             }
+
         } while (true);
         INFO("done %s", uri.c_str());
     }
@@ -280,11 +241,19 @@ public:
         for (const auto &x : uris_)
             current_uris.emplace_back(x);
     }
-    virtual bool startup(const string &engile_file, int gpuid, bool use_device_frame) {
+    virtual bool startup(const string &det_name, const string &pose_name, const string &gcn_name, int gpuid,
+                         bool use_device_frame) {
         gpu_              = gpuid;
         use_device_frame_ = use_device_frame_;
-        // yolo_pose_        = get_yolo(YoloposeGPUPtr::Type::V5, TRT::Mode::FP32, engile_file, gpuid);
-        yolo_ = get_yolo(YoloGPUPtr::Type::V5, TRT::Mode::FP32, engile_file, 0);
+        if (!pose_name.empty()) {
+            yolo_pose_ = get_yolopose(YoloposeGPUPtr::Type::V5, TRT::Mode::FP32, pose_name, gpuid);
+            if (yolo_pose_ != nullptr) {
+                INFO("yolo_pose will be committed");
+                for (int i = 0; i < 10; ++i)
+                    yolo_pose_->commit(cv::Mat(640, 640, CV_8UC3)).get();
+            }
+        }
+        yolo_ = get_yolo(YoloGPUPtr::Type::V5, TRT::Mode::FP16, det_name, 0);
         if (yolo_ == nullptr) {
             INFOE("create tensorrt engine failed.");
             return false;
@@ -305,10 +274,11 @@ private:
     vector<thread> ts_;
     vector<string> uris_{};
     ai_callback callback_;
-};
-shared_ptr<Pipeline> create_pipeline(const string &engile_file, int gpuid, bool use_device_frame) {
+};  // namespace Pipeline
+shared_ptr<Pipeline> create_pipeline(const string &det_name, const string &pose_name, const string &gcn_name, int gpuid,
+                                     bool use_device_frame) {
     shared_ptr<PipelineImpl> instance(new PipelineImpl());
-    if (!instance->startup(engile_file, gpuid, use_device_frame)) {
+    if (!instance->startup(det_name, pose_name, gcn_name, gpuid, use_device_frame)) {
         instance.reset();
     }
     return instance;
