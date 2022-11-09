@@ -203,7 +203,7 @@ public:
                         auto objs_pose = yolo_pose_->commit(image).get();
                         auto tracks    = tracker.update(det2tracks(objs_pose));
                         for (size_t t = 0; t < tracks.size(); t++) {
-                            auto &obj_pose = objs_pose[t];
+                            auto &obj_pose = objs_pose[tracks[t].detection_index];
                             vector<float> pose(obj_pose.pose, obj_pose.pose + 51);
                             nlohmann::json event_json = {
                                 {"id", tracks[t].track_id},
@@ -212,15 +212,6 @@ public:
                                 {"score", obj_pose.confidence}};
                             tmp_json["pose_results"].emplace_back(event_json);
                         }
-                        // for (const auto &obj_pose : objs_pose) {
-                        //     vector<float> pose(obj_pose.pose, obj_pose.pose + 51);
-                        //     nlohmann::json event_json = {
-                        //         {"id", -1},
-                        //         {"box", {obj_pose.left, obj_pose.top, obj_pose.right, obj_pose.bottom}},
-                        //         {"pose", pose},
-                        //         {"score", obj_pose.confidence}};
-                        //     tmp_json["pose_results"].emplace_back(event_json);
-                        // }
                     }
                     auto objs = objs_future.get();
                     for (const auto &obj : objs) {

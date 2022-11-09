@@ -3,9 +3,25 @@
 #include <iostream>
 #include "common/json.hpp"
 #include <math.h>
+#include <initializer_list>
 
 using namespace std;
 static float iou(const std::vector<float> &a, const std::vector<float> &b) {
+    float cleft   = max(a[0], b[0]);
+    float ctop    = max(a[1], b[1]);
+    float cright  = min(a[2], b[2]);
+    float cbottom = min(a[3], b[3]);
+
+    float c_area = max(cright - cleft, 0.0f) * max(cbottom - ctop, 0.0f);
+    if (c_area == 0.0f)
+        return 0.0f;
+
+    float a_area = max(0.0f, a[2] - a[0]) * max(0.0f, a[3] - a[1]);
+    float b_area = max(0.0f, b[2] - b[0]) * max(0.0f, b[3] - b[1]);
+    return c_area / (a_area + b_area - c_area);
+}
+template <class T>
+static float iou(initializer_list<T> &a, initializer_list<T> &b) {
     float cleft   = max(a[0], b[0]);
     float ctop    = max(a[1], b[1]);
     float cright  = min(a[2], b[2]);
@@ -23,9 +39,31 @@ static float iou(const std::vector<float> &a, const std::vector<float> &b) {
 void callback(int callbackType, void *img, char *data, int datalen) {
     // det_results : class_label    ["head", "_","smoking","body"]
     // pose_results: 51     17 * 3 (x,y,confidence)
-    // 解析json
-    auto results = nlohmann::json::parse(data);
-
+    auto results      = nlohmann::json::parse(data);
+    auto det_results  = results["det_results"];
+    auto pose_results = results["pose_results"];
+    // 判断抽烟
+    for (auto &dr : det_results) {
+        if (dr["class_label"] == 2) {
+            // 与pose_results iou 匹配
+            for (size_t i = 0; i < pose_results.size(); i++) {
+                float c_iou = iou(dr["box"], pose_results[i]["box"]);
+                if (c_iou > 0.8) {
+                    std::string event = "smoking";
+                    break;
+                }
+            }
+        }
+    }
+    // 判断拿货
+    // pose 在指定区域，且手部姿态持续一段时间（或者gnc result）
+    for (size_t i = 0; i < pose_results.size(); i++) {
+        auto pose = pose_results[i]["pose"];
+        // 手高于肩、持续时间
+        if (pose[9 * 3 + 1] < pose[5 * 3 + 1] && pose[10 * 3 + 1] < pose[6 * 3 + 1]) {
+            std::string event = "possible_pickup";
+        }
+    }
     std::cout << "results is :" << results << "\n";
 }
 void test_pipeline() {

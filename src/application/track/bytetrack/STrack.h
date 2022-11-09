@@ -8,7 +8,7 @@ enum TrackState { New = 0, Tracked, Lost, Removed };
 
 class STrack {
 public:
-    STrack(vector<float> tlwh_, float score);
+    STrack(vector<float> tlwh_, float score, int det_index);
     ~STrack();
 
     vector<float> static tlbr_to_tlwh(vector<float> &tlbr);
@@ -30,7 +30,7 @@ public:
     bool is_activated;
     int track_id;
     int state;
-
+    int detection_index{};
     vector<float> _tlwh;  // tracker第一帧的坐标
     vector<float> tlwh;
     vector<float> tlbr;
