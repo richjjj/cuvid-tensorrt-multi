@@ -184,7 +184,7 @@ public:
                 }
                 INFOW("reopen successed.");
             }
-            INFO("current uri is %s", uri.c_str());
+            // INFO("current uri is %s", uri.c_str());
             int ndecoded_frame = decoder->decode(packet_data, packet_size, pts);
             for (int i = 0; i < ndecoded_frame; ++i) {
                 unsigned int frame_index = 0;
