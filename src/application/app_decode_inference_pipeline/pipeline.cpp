@@ -199,6 +199,10 @@ public:
                                             decoder->get_height(), gpu_, decoder->get_stream(),
                                             YoloGPUPtr::ImageType::GPUBGR);
                     auto objs_future = yolo_->commit(image);
+                    cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
+                    cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
+                                    decoder->get_stream());
+                    cudaStreamSynchronize(decoder->get_stream());
                     if (yolo_pose_ != nullptr) {
                         auto objs_pose = yolo_pose_->commit(image).get();
                         auto tracks    = tracker.update(det2tracks(objs_pose));
@@ -211,6 +215,9 @@ public:
                                 {"pose", pose},
                                 {"score", obj_pose.confidence}};
                             tmp_json["pose_results"].emplace_back(event_json);
+                            // debug
+                            cv::rectangle(cvimage, cv::Point(obj_pose.left, obj_pose.top),
+                                          cv::Point(obj_pose.right, obj_pose.bottom), cv::Scalar(255, 0, 0), 3);
                         }
                     }
                     auto objs = objs_future.get();
@@ -220,11 +227,10 @@ public:
                                                      {"score", obj.confidence}};
                         tmp_json["det_results"].emplace_back(event_json);
                     }
-                    cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
-                    cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
-                                    decoder->get_stream());
-                    cudaStreamSynchronize(decoder->get_stream());
-                    // cv::imwrite(cv::format("imgs/%03d.jpg", frame_index), cvimage);
+                    // debug
+                    // if (tmp_json["pose_results"].size() > 0) {
+                    //     cv::imwrite(cv::format("imgs/%03d.jpg", frame_index), cvimage);
+                    // }
                     callback_(2, (void *)&cvimage, (char *)tmp_json.dump().c_str(), tmp_json.dump().size());
                 }
             }
