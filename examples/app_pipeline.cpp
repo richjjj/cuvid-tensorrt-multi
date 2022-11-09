@@ -1,12 +1,32 @@
 #include "app_decode_inference_pipeline/pipeline.hpp"
-// #include "common/ilogger.hpp"
+#include "common/ilogger.hpp"
 #include <iostream>
-// #include <opencv2/opencv.hpp>
+#include "common/json.hpp"
+#include <math.h>
+
+using namespace std;
+static float iou(const std::vector<float> &a, const std::vector<float> &b) {
+    float cleft   = max(a[0], b[0]);
+    float ctop    = max(a[1], b[1]);
+    float cright  = min(a[2], b[2]);
+    float cbottom = min(a[3], b[3]);
+
+    float c_area = max(cright - cleft, 0.0f) * max(cbottom - ctop, 0.0f);
+    if (c_area == 0.0f)
+        return 0.0f;
+
+    float a_area = max(0.0f, a[2] - a[0]) * max(0.0f, a[3] - a[1]);
+    float b_area = max(0.0f, b[2] - b[0]) * max(0.0f, b[3] - b[1]);
+    return c_area / (a_area + b_area - c_area);
+}
 
 void callback(int callbackType, void *img, char *data, int datalen) {
-    // std::cout << "callbackType is " << callbackType << std::endl;
-    // std::cout << "datalen is : " << datalen << std::endl;
-    std::cout << "data is: " << data << std::endl;
+    // det_results : class_label    ["head", "_","smoking","body"]
+    // pose_results: 51     17 * 3 (x,y,confidence)
+    // 解析json
+    auto results = nlohmann::json::parse(data);
+
+    std::cout << "results is :" << results << "\n";
 }
 void test_pipeline() {
     // iLogger::rmtree("imgs");
@@ -14,17 +34,9 @@ void test_pipeline() {
     std::string det_name  = "yolov5x-aqm";
     std::string pose_name = "yolov5s_pose";
     std::string gcn_name  = "";
-    std::vector<std::string> uris{"exp/39.mp4", "exp/37.mp4", "exp/38.mp4", "exp/37.mp4", "exp/38.mp4"};
-    // std::vector<std::string> uris{"rtsp://admin:xmrbi123@192.168.175.232:554/Streaming/Channels/101"};
-    // for (int i = 0; i < 64; ++i)
-    // {
-    //     if (i % 3 == 0)
-    //         uris.emplace_back("exp/dog.mp4");
-    //     else if (i % 3 == 1)
-    //         uris.emplace_back("exp/cat.mp4");
-    //     else if (i % 3 == 2)
-    //         uris.emplace_back("exp/pig.mp4");
-    // }
+    // std::vector<std::string> uris{"exp/39.mp4", "exp/37.mp4", "exp/38.mp4",
+    //                               "exp/37.mp4", "exp/38.mp4", "rtsp://192.168.170.109:554/live/streamperson"};
+    std::vector<std::string> uris{"rtsp://192.168.170.109:554/live/streamperson"};
 
     auto pipeline = Pipeline::create_pipeline(det_name, pose_name, gcn_name);
     std::vector<std::string> current_uris{};

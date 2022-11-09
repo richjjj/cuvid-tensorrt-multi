@@ -19,7 +19,7 @@ T round_up(T value, int decimal_places) {
     const T multiplier = std::pow(10.0, decimal_places);
     return std::ceil(value * multiplier) / multiplier;
 }
-vector<Object> det2tracks(const ObjectDetector::BoxArray &array) {
+vector<Object> det2tracks(const YoloposeGPUPtr::BoxArray &array) {
     vector<Object> outputs;
     for (int i = 0; i < array.size(); ++i) {
         auto &abox = array[i];
@@ -200,23 +200,31 @@ public:
                                             YoloGPUPtr::ImageType::GPUBGR);
                     auto objs_future = yolo_->commit(image);
                     if (yolo_pose_ != nullptr) {
-                        // YoloposeGPUPtr::Image poseimage(decoder->get_frame(&pts, &frame_index), decoder->get_width(),
-                        //                                 decoder->get_height(), gpu_, decoder->get_stream(),
-                        //                                 YoloposeGPUPtr::ImageType::GPUBGR);
                         auto objs_pose = yolo_pose_->commit(image).get();
-                        for (const auto &obj_pose : objs_pose) {
+                        auto tracks    = tracker.update(det2tracks(objs_pose));
+                        for (size_t t = 0; t < tracks.size(); t++) {
+                            auto &obj_pose = objs_pose[t];
                             vector<float> pose(obj_pose.pose, obj_pose.pose + 51);
                             nlohmann::json event_json = {
+                                {"id", tracks[t].track_id},
                                 {"box", {obj_pose.left, obj_pose.top, obj_pose.right, obj_pose.bottom}},
                                 {"pose", pose},
                                 {"score", obj_pose.confidence}};
                             tmp_json["pose_results"].emplace_back(event_json);
                         }
+                        // for (const auto &obj_pose : objs_pose) {
+                        //     vector<float> pose(obj_pose.pose, obj_pose.pose + 51);
+                        //     nlohmann::json event_json = {
+                        //         {"id", -1},
+                        //         {"box", {obj_pose.left, obj_pose.top, obj_pose.right, obj_pose.bottom}},
+                        //         {"pose", pose},
+                        //         {"score", obj_pose.confidence}};
+                        //     tmp_json["pose_results"].emplace_back(event_json);
+                        // }
                     }
                     auto objs = objs_future.get();
                     for (const auto &obj : objs) {
-                        nlohmann::json event_json = {{"id", -1},
-                                                     {"box", {obj.left, obj.top, obj.right, obj.bottom}},
+                        nlohmann::json event_json = {{"box", {obj.left, obj.top, obj.right, obj.bottom}},
                                                      {"class_label", obj.class_label},
                                                      {"score", obj.confidence}};
                         tmp_json["det_results"].emplace_back(event_json);
