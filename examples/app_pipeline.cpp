@@ -80,7 +80,6 @@ void test_pipeline() {
     std::vector<std::string> current_uris{};
 
     if (pipeline == nullptr) {
-        int *a;
         std::cout << "pipeline create failed" << std::endl;
         return;
     }
@@ -95,8 +94,6 @@ void test_pipeline() {
     for (auto u : current_uris) {
         std::cout << u << std::endl;
     }
-
-    pipeline->join();
 }
 
 int app_pipeline() {
