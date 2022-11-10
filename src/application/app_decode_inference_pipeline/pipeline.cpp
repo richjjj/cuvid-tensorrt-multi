@@ -19,6 +19,16 @@ T round_up(T value, int decimal_places) {
     const T multiplier = std::pow(10.0, decimal_places);
     return std::ceil(value * multiplier) / multiplier;
 }
+
+// template <class Container, class Function>
+// static auto apply(const Container &cont, Function fun) {
+//     std::vector<typename std::result_of<Function(const typename Container::value_type &)>::type> ret;
+//     ret.reserve(cont.size());
+//     for (const auto &v : cont) {
+//         ret.push_back(fun(v));
+//     }
+//     return ret;
+// }
 vector<Object> det2tracks(const YoloposeGPUPtr::BoxArray &array) {
     vector<Object> outputs;
     for (int i = 0; i < array.size(); ++i) {
@@ -189,16 +199,16 @@ public:
             for (int i = 0; i < ndecoded_frame; ++i) {
                 unsigned int frame_index = 0;
                 if (callback_) {
-                    nlohmann::json tmp_json;
-                    tmp_json["cameraId"]     = uri;
-                    tmp_json["freshTime"]    = pts;  // 时间戳，表示当前的帧数
-                    tmp_json["det_results"]  = nlohmann::json::array();
-                    tmp_json["pose_results"] = nlohmann::json::array();
-                    tmp_json["gcn_results"]  = nlohmann::json::array();
                     YoloGPUPtr::Image image(decoder->get_frame(&pts, &frame_index), decoder->get_width(),
                                             decoder->get_height(), gpu_, decoder->get_stream(),
                                             YoloGPUPtr::ImageType::GPUBGR);
-                    auto objs_future = yolo_->commit(image);
+                    nlohmann::json tmp_json;
+                    tmp_json["cameraId"]     = uri;
+                    tmp_json["freshTime"]    = frame_index;  // 时间戳，表示当前的帧数
+                    tmp_json["det_results"]  = nlohmann::json::array();
+                    tmp_json["pose_results"] = nlohmann::json::array();
+                    tmp_json["gcn_results"]  = nlohmann::json::array();
+                    auto objs_future         = yolo_->commit(image);
                     cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
                     cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
                                     decoder->get_stream());
@@ -216,8 +226,10 @@ public:
                                 {"score", obj_pose.confidence}};
                             tmp_json["pose_results"].emplace_back(event_json);
                             // debug
-                            cv::rectangle(cvimage, cv::Point(obj_pose.left, obj_pose.top),
-                                          cv::Point(obj_pose.right, obj_pose.bottom), cv::Scalar(255, 0, 0), 3);
+                            // cv::rectangle(cvimage, cv::Point(obj_pose.left, obj_pose.top),
+                            //               cv::Point(obj_pose.right, obj_pose.bottom), cv::Scalar(255, 0, 0), 3);
+                            // INFO("box: %s ?= %.2f,%.2f,%.2f,%.2f", event_json["box"].dump().c_str(), obj_pose.left,
+                            //      obj_pose.top, obj_pose.right, obj_pose.bottom);
                         }
                     }
                     auto objs = objs_future.get();
@@ -229,6 +241,9 @@ public:
                     }
                     // debug
                     // if (tmp_json["pose_results"].size() > 0) {
+                    //     cv::putText(cvimage, to_string(frame_index), cv::Point(100, 100), 0, 1, cv::Scalar::all(0),
+                    //     2,
+                    //                 16);
                     //     cv::imwrite(cv::format("imgs/%03d.jpg", frame_index), cvimage);
                     // }
                     callback_(2, (void *)&cvimage, (char *)tmp_json.dump().c_str(), tmp_json.dump().size());

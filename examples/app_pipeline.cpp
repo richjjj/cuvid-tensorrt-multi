@@ -4,6 +4,7 @@
 #include "common/json.hpp"
 #include <math.h>
 #include <initializer_list>
+#include "opencv2/opencv.hpp"
 
 using namespace std;
 static float iou(const std::vector<float> &a, const std::vector<float> &b) {
@@ -42,6 +43,12 @@ void callback(int callbackType, void *img, char *data, int datalen) {
     auto results      = nlohmann::json::parse(data);
     auto det_results  = results["det_results"];
     auto pose_results = results["pose_results"];
+    // debug
+    // cv::Mat image;
+    // auto img_tmp = (cv::Mat *)img;
+    // img_tmp->copyTo(image);
+    auto frame_index = results["freshTime"];
+    // debug
     // 判断抽烟
     for (auto &dr : det_results) {
         if (dr["class_label"] == 2) {
@@ -63,12 +70,23 @@ void callback(int callbackType, void *img, char *data, int datalen) {
         if (pose[9 * 3 + 1] < pose[5 * 3 + 1] && pose[10 * 3 + 1] < pose[6 * 3 + 1]) {
             std::string event = "possible_pickup";
         }
+        // debug
+        // auto box = pose_results[i]["box"];
+        // cv::rectangle(image, cv::Point(box[0], box[1]), cv::Point(box[2], box[3]), cv::Scalar(0, 0, 255), 1);
     }
-    std::cout << "results is :" << results << "\n";
+    // debug
+    // if (pose_results.size() > 0) {
+    //     cv::putText(image, to_string(frame_index), cv::Point(200, 100), 0, 1, cv::Scalar::all(0), 2, 16);
+    //     cv::imwrite(cv::format("imgs_callback/%03d.jpg", (int)frame_index), image);
+    // }
+    // std::cout << "results is :" << results << "\n";
 }
 void test_pipeline() {
+    // debug
     // iLogger::rmtree("imgs");
     // iLogger::mkdir("imgs");
+    // iLogger::rmtree("imgs_callback");
+    // iLogger::mkdir("imgs_callback");
     std::string det_name  = "yolov5x-aqm";
     std::string pose_name = "yolov5s_pose";
     std::string gcn_name  = "";
