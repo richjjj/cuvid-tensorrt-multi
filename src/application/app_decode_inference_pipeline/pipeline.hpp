@@ -20,7 +20,7 @@ public:
     virtual void set_callback(ai_callback callback)                                   = 0;
     virtual void disconnect_view(const string &dis_uri)                               = 0;
     virtual void disconnect_views(const vector<string> &dis_uris)                     = 0;
-    virtual void get_uris(vector<string> &current_uris) const                         = 0;
+    virtual vector<string> get_uris() const                                           = 0;
     virtual void join()                                                               = 0;
 };
 shared_ptr<Pipeline> create_pipeline(const string &det_name, const string &pose_name = "", const string &gcn_name = "",

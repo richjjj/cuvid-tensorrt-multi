@@ -98,7 +98,6 @@ void test_pipeline() {
                                   "rtsp://192.168.170.109:554/live/streamperson6"};
 
     auto pipeline = Pipeline::create_pipeline(det_name, pose_name, gcn_name);
-    std::vector<std::string> current_uris{};
 
     if (pipeline == nullptr) {
         std::cout << "pipeline create failed" << std::endl;
@@ -111,7 +110,15 @@ void test_pipeline() {
         std::cout << x << std::endl;
     }
 
-    pipeline->get_uris(current_uris);
+    auto current_uris = pipeline->get_uris();
+    for (auto u : current_uris) {
+        std::cout << u << std::endl;
+    }
+    // test disconnet
+    pipeline->disconnect_view("rtsp://192.168.170.109:554/live/streamperson6");
+    current_uris = pipeline->get_uris();
+    std::cout << "after disconnect_view(rtsp://192.168.170.109:554/live/streamperson6): "
+              << "\n";
     for (auto u : current_uris) {
         std::cout << u << std::endl;
     }
