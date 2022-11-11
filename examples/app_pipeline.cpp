@@ -43,6 +43,7 @@ void callback(int callbackType, void *img, char *data, int datalen) {
     auto results      = nlohmann::json::parse(data);
     auto det_results  = results["det_results"];
     auto pose_results = results["pose_results"];
+    auto camera_id    = results["cameraId"];
     // debug
     // cv::Mat image;
     // auto img_tmp = (cv::Mat *)img;
@@ -79,7 +80,7 @@ void callback(int callbackType, void *img, char *data, int datalen) {
     //     cv::putText(image, to_string(frame_index), cv::Point(200, 100), 0, 1, cv::Scalar::all(0), 2, 16);
     //     cv::imwrite(cv::format("imgs_callback/%03d.jpg", (int)frame_index), image);
     // }
-    // std::cout << "results is :" << results << "\n";
+    // std::cout << "results is :" << camera_id << "\n";
 }
 void test_pipeline() {
     // debug
@@ -92,7 +93,9 @@ void test_pipeline() {
     std::string gcn_name  = "";
     // std::vector<std::string> uris{"exp/39.mp4", "exp/37.mp4", "exp/38.mp4",
     //                               "exp/37.mp4", "exp/38.mp4", "rtsp://192.168.170.109:554/live/streamperson"};
-    std::vector<std::string> uris{"rtsp://192.168.170.109:554/live/streamperson"};
+    std::vector<std::string> uris{"rtsp://192.168.170.109:554/live/streamperson1",
+                                  "rtsp://192.168.170.109:554/live/streamperson4",
+                                  "rtsp://192.168.170.109:554/live/streamperson6"};
 
     auto pipeline = Pipeline::create_pipeline(det_name, pose_name, gcn_name);
     std::vector<std::string> current_uris{};

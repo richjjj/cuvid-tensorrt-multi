@@ -127,13 +127,13 @@ class PipelineImpl : public Pipeline {
 public:
     virtual ~PipelineImpl() {
         join();
+        INFO("pipeline done.");
     }
     virtual void join() override {
         for (auto &t : ts_) {
             if (t.joinable())
                 t.join();
         }
-        INFO("pipeline done.");
     }
 
     virtual bool make_view(const string &uri, size_t timeout) override {
@@ -185,14 +185,14 @@ public:
         do {
             bool flag = demuxer->demux(&packet_data, &packet_size, &pts);
             if (!flag) {
-                INFOW("diconnected will be reopened.");
                 while (!flag) {
+                    INFOW("%s cannot be connected. try reconnect....", uri.c_str());
                     this_thread::sleep_for(chrono::milliseconds(200));
-                    flag    = demuxer->reopen();
-                    decoder = FFHDDecoder::create_cuvid_decoder(
-                        use_device_frame_, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()), -1, gpu_);
+                    demuxer.reset();
+                    demuxer = FFHDDemuxer::create_ffmpeg_demuxer(uri, true);
+                    flag    = (demuxer != nullptr) && demuxer->demux(&packet_data, &packet_size, &pts);
                 }
-                INFOW("reopen successed.");
+                INFOW("%s reopen successed.", uri.c_str());
             }
             // INFO("current uri is %s", uri.c_str());
             int ndecoded_frame = decoder->decode(packet_data, packet_size, pts);
@@ -253,6 +253,7 @@ public:
         } while (true);
         INFO("done %s", uri.c_str());
     }
+    virtual void disconnect_view(const string &dis_uri) override {}
     virtual void disconnect_views(const vector<string> &dis_uris) override {}
     virtual void set_callback(ai_callback callback) override {
         callback_ = callback;
@@ -293,6 +294,7 @@ private:
     shared_ptr<YoloGPUPtr::Infer> yolo_;
     vector<thread> ts_;
     vector<string> uris_{};
+    vector<atomic<bool>> runnings_{};
     ai_callback callback_;
 };  // namespace Pipeline
 shared_ptr<Pipeline> create_pipeline(const string &det_name, const string &pose_name, const string &gcn_name, int gpuid,

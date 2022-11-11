@@ -18,6 +18,7 @@ public:
     virtual bool make_view(const string &uri, size_t timeout = 100)                   = 0;
     virtual vector<bool> make_views(const vector<string> &uris, size_t timeout = 100) = 0;
     virtual void set_callback(ai_callback callback)                                   = 0;
+    virtual void disconnect_view(const string &dis_uri)                               = 0;
     virtual void disconnect_views(const vector<string> &dis_uris)                     = 0;
     virtual void get_uris(vector<string> &current_uris) const                         = 0;
     virtual void join()                                                               = 0;
