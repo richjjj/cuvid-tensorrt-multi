@@ -8,9 +8,9 @@
             "name": "(gdb) 启动",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/workspace/pro",
+            "program": "${workspaceFolder}/workspace/example",
             "args": [
-                "yolo"
+                "plate"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/workspace",

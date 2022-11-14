@@ -72,6 +72,8 @@ void callback(int callbackType, void *img, char *data, int datalen) {
             std::string event = "possible_pickup";
         }
         // debug
+        // cout << camera_id << " = " << pose_results[i]["id"] << "\n";
+        INFO("%s id = %s", camera_id.dump().c_str(), pose_results[i]["id"].dump().c_str());
         // auto box = pose_results[i]["box"];
         // cv::rectangle(image, cv::Point(box[0], box[1]), cv::Point(box[2], box[3]), cv::Scalar(0, 0, 255), 1);
     }
@@ -80,7 +82,7 @@ void callback(int callbackType, void *img, char *data, int datalen) {
     //     cv::putText(image, to_string(frame_index), cv::Point(200, 100), 0, 1, cv::Scalar::all(0), 2, 16);
     //     cv::imwrite(cv::format("imgs_callback/%03d.jpg", (int)frame_index), image);
     // }
-    // std::cout << "results is :" << camera_id << "\n";
+    // std::cout << "results is :" << pose_results << "\n";
 }
 void test_pipeline() {
     // debug
@@ -93,9 +95,8 @@ void test_pipeline() {
     std::string gcn_name  = "";
     // std::vector<std::string> uris{"exp/39.mp4", "exp/37.mp4", "exp/38.mp4",
     //                               "exp/37.mp4", "exp/38.mp4", "rtsp://192.168.170.109:554/live/streamperson"};
-    std::vector<std::string> uris{"rtsp://192.168.170.109:554/live/streamperson1",
-                                  "rtsp://192.168.170.109:554/live/streamperson4",
-                                  "rtsp://192.168.170.109:554/live/streamperson6"};
+    std::vector<std::string> uris{"rtsp://admin:admin123@192.168.170.109:580/cam/realmonitor?channel=4&subtype=0",
+                                  "rtsp://admin:admin123@192.168.170.109:580/cam/realmonitor?channel=6&subtype=0"};
 
     auto pipeline = Pipeline::create_pipeline(det_name, pose_name, gcn_name);
 
@@ -105,17 +106,21 @@ void test_pipeline() {
     }
     //
     pipeline->set_callback(callback);
-    auto out = pipeline->make_views(uris);
-    for (auto x : out) {
-        std::cout << x << std::endl;
+    // auto out = pipeline->make_views(uris);
+    for (auto uri : uris) {
+        pipeline->make_view(uri);
     }
+
+    // for (auto x : out) {
+    //     std::cout << x << std::endl;
+    // }
 
     auto current_uris = pipeline->get_uris();
     for (auto u : current_uris) {
         std::cout << u << std::endl;
     }
     // test disconnet
-    pipeline->disconnect_view("rtsp://192.168.170.109:554/live/streamperson6");
+    // pipeline->disconnect_view("rtsp://192.168.170.109:554/live/streamperson6");
     current_uris = pipeline->get_uris();
     std::cout << "after disconnect_view(rtsp://192.168.170.109:554/live/streamperson6): "
               << "\n";

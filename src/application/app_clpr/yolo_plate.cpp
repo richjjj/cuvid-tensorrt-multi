@@ -14,6 +14,7 @@ namespace Clpr {
 
 void decode_kernel_invoker(float *predict, int num_bboxes, int num_classes, float confidence_threshold,
                            float *invert_affine_matrix, float *parray, int max_objects, cudaStream_t stream);
+void nms_kernel_invoker(float *parray, float nms_threshold, int max_objects, cudaStream_t stream);
 struct AffineMatrix {
     float i2d[6];  // image to dst(network), 2x3 matrix
     float d2i[6];  // dst to image, 2x3 matrix
@@ -129,6 +130,7 @@ public:
                 checkCudaRuntime(cudaMemsetAsync(output_array_ptr, 0, sizeof(int), stream_));
                 decode_kernel_invoker(image_based_output, output->size(1), num_classes, confidence_threshold_,
                                       affine_matrix, output_array_ptr, MAX_IMAGE_BBOX, stream_);
+                nms_kernel_invoker(output_array_ptr, nms_threshold_, MAX_IMAGE_BBOX, stream_);
             }
 
             output_array_device.to_cpu();

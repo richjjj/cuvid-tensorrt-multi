@@ -102,6 +102,9 @@ run       : $(example)
 yolo       : $(example)
 	@cd $(workdir) && ./$(example) yolo
 
+plate      : $(example)
+	@cd $(workdir) && ./$(example) plate
+
 yolopose   : $(example)
 	@cd $(workdir) && ./$(example) yolopose
 
@@ -125,7 +128,7 @@ $(workdir)/$(name) : $(cpp_objs) $(cu_objs)
 $(workdir)/$(example) : $(cpp_objs_example)
 	@echo Link $@
 	@mkdir -p $(dir $@)
-	@$(cc) $^ -o $@ $(link_flags) -L$(workdir) -l$(short_name)
+	@$(cc) $^ -o $@ $(link_flags) -L$(workdir) -l$(short_name) -lopencv_freetype
 
 $(objdir)/%.cpp.o : $(srcdir)/%.cpp
 	@echo Compile CXX $<

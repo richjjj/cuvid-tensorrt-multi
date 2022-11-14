@@ -10,7 +10,7 @@ int app_yolo();
 int app_yolopose();
 int app_multi_camera();
 int app_pipeline();
-
+int app_plate();
 int main(int argc, char **argv) {
     const char *method = "yolo";
     if (argc > 1) {
@@ -28,6 +28,10 @@ int main(int argc, char **argv) {
     } else if (strcmp(method, "multi") == 0) {
         app_multi_camera();
     } else if (strcmp(method, "pipeline") == 0) {
+        app_pipeline();
+    } else if (strcmp(method, "plate") == 0) {
+        app_plate();
+    } else {
         app_pipeline();
     }
     return 0;

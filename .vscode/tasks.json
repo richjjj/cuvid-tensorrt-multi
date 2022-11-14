@@ -6,7 +6,7 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "make pro -j64"
+            "command": "make example -j24"
             // for cmake
             //"command": "cd build && make pro -j25"
         }

@@ -4,7 +4,7 @@
 
 namespace Clpr {
 
-const int NUM_BOX_ELEMENT = 7;  // left, top, right, bottom, confidence, class, keepflag
+const int NUM_BOX_ELEMENT = 7 + 8;  // left, top, right, bottom, confidence, class, keepflag landmarks
 static __device__ void affine_project(float* matrix, float x, float y, float* ox, float* oy) {
     *ox = matrix[0] * x + matrix[1] * y + matrix[2];
     *oy = matrix[3] * x + matrix[4] * y + matrix[5];
@@ -16,7 +16,7 @@ static __global__ void decode_kernel(float* predict, int num_bboxes, int num_cla
     if (position >= num_bboxes)
         return;
 
-    float* pitem     = predict + (5 + num_classes + 8) * position;  // 4*2 landmarks
+    float* pitem = predict + (5 + num_classes + 8) * position;  // cx cy w h obconfidence socrs[mumclasses] landmarks[8]
     float objectness = pitem[4];
     if (objectness < confidence_threshold)
         return;
@@ -59,7 +59,7 @@ static __global__ void decode_kernel(float* predict, int num_bboxes, int num_cla
     *pout_item++     = label;
     *pout_item++     = 1;  // 1 = keep, 0 = ignore
 
-    float* landmark_predict = pitem + 5 + num_classes;
+    float* landmark_predict = pitem + 1 + num_classes;
     for (int i = 0; i < 4; i++) {
         float x = landmark_predict[0];
         float y = landmark_predict[1];

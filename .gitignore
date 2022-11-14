@@ -5,6 +5,7 @@ workspace/soft/
 workspace/imgs/
 workspace/example
 workspace/libpro.so
+workspace/*.jpg
 *.trtmodel
 *.onnx
 !yolov5s_pose.onnx

@@ -156,6 +156,14 @@ public:
         }
         return out;
     }
+    unique_ptr<BYTETracker> creatTracker() {
+        unique_ptr<BYTETracker> tracker(new BYTETracker());
+        tracker->config()
+            .set_initiate_state({0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 1, 0.2})
+            .set_per_frame_motion({0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 1, 0.2})
+            .set_max_time_lost(150);
+        return tracker;
+    }
     virtual void worker(const string &uri, promise<bool> &state) {
         auto demuxer = FFHDDemuxer::create_ffmpeg_demuxer(uri, true);
         if (demuxer == nullptr) {
@@ -173,12 +181,14 @@ public:
             return;
         }
         state.set_value(true);
-        BYTETracker tracker;
-        tracker.config()
-            .set_initiate_state({0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 1, 0.2})
-            .set_per_frame_motion({0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 1, 0.2})
-            .set_max_time_lost(150);
 
+        auto tracker = creatTracker();
+
+        if (tracker == nullptr) {
+            INFOE("tracker create failed");
+            state.set_value(false);
+            return;
+        }
         uint8_t *packet_data = nullptr;
         int packet_size      = 0;
         uint64_t pts         = 0;
@@ -222,7 +232,7 @@ public:
                     cudaStreamSynchronize(decoder->get_stream());
                     if (yolo_pose_ != nullptr) {
                         auto objs_pose = yolo_pose_->commit(image).get();
-                        auto tracks    = tracker.update(det2tracks(objs_pose));
+                        auto tracks    = tracker->update(det2tracks(objs_pose));
                         for (size_t t = 0; t < tracks.size(); t++) {
                             auto &obj_pose = objs_pose[tracks[t].detection_index];
                             vector<float> pose(obj_pose.pose, obj_pose.pose + 51);
@@ -273,7 +283,7 @@ public:
     }
     virtual vector<string> get_uris() const override {
         return uris_;
-        }
+    }
     virtual bool startup(const string &det_name, const string &pose_name, const string &gcn_name, int gpuid,
                          bool use_device_frame) {
         gpu_              = gpuid;

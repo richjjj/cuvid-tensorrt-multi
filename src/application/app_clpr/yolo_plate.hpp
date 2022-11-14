@@ -14,12 +14,13 @@ using namespace cv;
 struct PlateRegion {
     float left, top, right, bottom, confidence;
     int class_label;
-    Point2f landmarks[4];
+    // Point2f landmarks[4];
+    float landmarks[8];
 
     PlateRegion() = default;
     PlateRegion(float left, float top, float right, float bottom, float confidence, int class_label, float* points)
         : left(left), top(top), right(right), bottom(bottom), confidence(confidence), class_label(class_label) {
-        memcpy(landmarks, points, 4);
+        memcpy(landmarks, points, sizeof(landmarks));
     }
     // float d2i[6];
 };
