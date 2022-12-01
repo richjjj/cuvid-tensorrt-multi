@@ -11,6 +11,14 @@ using namespace std;
 static shared_ptr<Clpr::DetInfer> get_yolo_plate(TRT::Mode mode, const string& model, int device_id) {
     auto mode_name = TRT::mode_string(mode);
     TRT::set_device(device_id);
+    auto int8process = [=](int current, int count, const vector<string>& files, shared_ptr<TRT::Tensor>& tensor) {
+        INFO("Int8 %d / %d", current, count);
+
+        for (int i = 0; i < files.size(); ++i) {
+            auto image = cv::imread(files[i]);
+            Clpr::image_to_tensor(image, tensor, i);
+        }
+    };
 
     const char* name = model.c_str();
     INFO("===================== test %s %s ==================================", mode_name, name);
@@ -22,15 +30,14 @@ static shared_ptr<Clpr::DetInfer> get_yolo_plate(TRT::Mode mode, const string& m
         TRT::compile(mode,             // FP32、FP16、INT8
                      test_batch_size,  // max batch size
                      onnx_file,        // source
-                     model_file        // save to
-        );
+                     model_file,       // save to
+                     {}, int8process, "inference");
     }
 
     return Clpr::create_det(model_file,  // engine file
                             device_id,   // gpu id
                             0.25f,       // confidence threshold
                             0.45f,       // nms threshold
-                                         // NMS method, fast GPU / CPU
                             1024         // max objects
     );
 }
@@ -62,7 +69,8 @@ static shared_ptr<Clpr::RecInfer> get_plate_rec(TRT::Mode mode, const string& mo
 static void yolo_plate_test() {
     auto name       = "plate_detect";
     auto device_id  = 0;
-    auto yolo_plate = get_yolo_plate(TRT::Mode::FP32, name, device_id);
+    auto mode       = TRT::Mode::FP16;
+    auto yolo_plate = get_yolo_plate(mode, name, device_id);
     if (yolo_plate == nullptr) {
         INFOE("engine create failed.");
         return;
@@ -74,6 +82,34 @@ static void yolo_plate_test() {
     }
 
     // warm up
+    auto files = iLogger::find_files("exp", "*.jpg;*.jpeg;*.png;*.gif;*.tif");
+    vector<cv::Mat> images;
+    for (int i = 0; i < files.size(); ++i) {
+        auto image = cv::imread(files[i]);
+        images.emplace_back(image);
+    }
+
+    // warmup
+    vector<shared_future<Clpr::PlateRegionArray>> boxes_array;
+    for (int i = 0; i < 10; ++i)
+        boxes_array = yolo_plate->commits(images);
+    boxes_array.back().get();
+    boxes_array.clear();
+
+    /////////////////////////////////////////////////////////
+    const int ntest  = 100;
+    auto begin_timer = iLogger::timestamp_now_float();
+
+    for (int i = 0; i < ntest; ++i)
+        boxes_array = yolo_plate->commits(images);
+
+    // wait all result
+    boxes_array.back().get();
+
+    float inference_average_time = (iLogger::timestamp_now_float() - begin_timer) / ntest / images.size();
+    auto mode_name               = TRT::mode_string(mode);
+    INFO("plate_detect[%s] average: %.2f ms / image, FPS: %.2f", mode_name, inference_average_time,
+         1000 / inference_average_time);
     for (int i = 0; i < 10; ++i) {
         yolo_plate->commit(cv::Mat(640, 640, CV_8UC3)).get();
     }
@@ -86,7 +122,11 @@ static void yolo_plate_test() {
     int linestyle   = 8;
     auto test_image = "exp/plate.jpg";
     cv::Mat image   = cv::imread(test_image);
-    auto results    = yolo_plate->commit(image).get();
+    // 测试 commits
+    vector<cv::Mat> images_copy{image, image, image};
+    auto results_copy = yolo_plate->commits(images_copy);
+    auto results      = results_copy[0].get();
+    // auto results = yolo_plate->commit(image).get();
     for (auto& r : results) {
         auto plateno = plate_rec->commit(make_tuple(image, r.landmarks)).get();
         INFO("current plateNO is %s", plateno.c_str());
@@ -102,6 +142,7 @@ static void yolo_plate_test() {
     }
     auto save_image = "det_plate.jpg";
     cv::imwrite(save_image, image);
+    INFO("save image to %s.", save_image);
 }
 
 int app_plate() {

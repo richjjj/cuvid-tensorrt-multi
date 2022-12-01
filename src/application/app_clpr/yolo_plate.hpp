@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include "common/trt_tensor.hpp"
 
 namespace Clpr {
 using namespace std;
@@ -33,6 +34,7 @@ public:
 };
 shared_ptr<DetInfer> create_det(const string& engine_file, int gpuid = 0, float confidence_threshold = 0.5,
                                 float nms_threshold = 0.4, int max_objects = 1024);
+void image_to_tensor(const cv::Mat& image, shared_ptr<TRT::Tensor>& tensor, int ibatch);
 }  // namespace Clpr
 
 #endif

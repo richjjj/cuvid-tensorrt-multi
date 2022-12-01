@@ -87,7 +87,7 @@ link_flags        += $(library_paths) $(link_librarys) $(run_paths)
 
 # 如果头文件修改了，这里的指令可以让他自动编译依赖的cpp或者cu文件
 ifneq ($(MAKECMDGOALS), clean)
--include $(cpp_mk) $(cu_mk)
+-include $(cpp_mk) $(cu_mk) $(cpp_mk_example)
 endif
 
 $(name)   : $(workdir)/$(name)
@@ -147,6 +147,12 @@ $(objdir)/%.cu.o : $(srcdir)/%.cu
 
 # 编译cpp依赖项，生成mk文件
 $(objdir)/%.cpp.mk : $(srcdir)/%.cpp
+	@echo Compile depends C++ $<
+	@mkdir -p $(dir $@)
+	@$(cc) -M $< -MF $@ -MT $(@:.cpp.mk=.cpp.o) $(cpp_compile_flags)
+
+# 编译cpp依赖项，生成mk文件
+$(objdir)/%.cpp.mk : $(exampledir)/%.cpp
 	@echo Compile depends C++ $<
 	@mkdir -p $(dir $@)
 	@$(cc) -M $< -MF $@ -MT $(@:.cpp.mk=.cpp.o) $(cpp_compile_flags)
