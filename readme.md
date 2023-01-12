@@ -4,6 +4,7 @@
 # 使用
 1. 为nvcuvid创建软链接，这个库随显卡驱动发布
     - `bash link-cuvid.sh`
+1. 若为jetson平台，指定 Makefile `make -f Makefile_jetson jetson`,移除不支持的解码库
 2. 编译libpro.so, `bear make all` 生成 compile_commands.json
     - `make all -j64`
 3. 执行对比测试`make yolo -j64`

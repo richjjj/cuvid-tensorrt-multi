@@ -6,6 +6,7 @@
 
 #include <opencv2/freetype.hpp>
 
+#include <app_clpr/plate_e2e.hpp>
 using namespace std;
 
 static shared_ptr<Clpr::DetInfer> get_yolo_plate(TRT::Mode mode, const string& model, int device_id) {
@@ -75,7 +76,7 @@ static void yolo_plate_test() {
         INFOE("engine create failed.");
         return;
     }
-    auto plate_rec = get_plate_rec(TRT::Mode::FP32, "plate_rec", device_id);
+    auto plate_rec = get_plate_rec(TRT::Mode::FP32, "plate_rec_color", device_id);
     if (plate_rec == nullptr) {
         INFOE("plate rec engine create failed.");
         return;
@@ -128,8 +129,8 @@ static void yolo_plate_test() {
     auto results      = results_copy[0].get();
     // auto results = yolo_plate->commit(image).get();
     for (auto& r : results) {
-        auto plateno = plate_rec->commit(make_tuple(image, r.landmarks)).get();
-        INFO("current plateNO is %s", plateno.c_str());
+        auto plate_result = plate_rec->commit(make_tuple(image, r.landmarks)).get();
+        INFO("current plateNO is %s", plate_result.print_info().c_str());
         cv::rectangle(image, cv::Point(r.left, r.top), cv::Point(r.right, r.bottom), cv::Scalar(0, 255, 0), 2);
         for (int j = 0; j < 4; ++j) {
             cv::circle(image, cv::Point(r.landmarks[j * 2 + 0], r.landmarks[j * 2 + 1]), 3, cv::Scalar(0, 0, 255), -1,
@@ -137,15 +138,24 @@ static void yolo_plate_test() {
         }
         cv::putText(image, iLogger::format("%.3f", r.confidence), cv::Point(r.left, r.top), 0, 1, cv::Scalar(0, 255, 0),
                     1, 16);
-        ft2->putText(image, plateno, cv::Point(r.left, r.bottom + fontHeight), fontHeight, CV_RGB(255, 255, 0),
-                     thickness, linestyle, true);
+        ft2->putText(image, plate_result.color_str() + plate_result.number, cv::Point(r.left, r.bottom + fontHeight),
+                     fontHeight, CV_RGB(255, 255, 0), thickness, linestyle, true);
     }
     auto save_image = "det_plate.jpg";
     cv::imwrite(save_image, image);
     INFO("save image to %s.", save_image);
 }
 
+static void plate_e2e_test() {
+    auto e2e        = Clpr::create_e2e("plate_detect", "plate_rec_color");
+    auto test_image = "exp/plate.jpg";
+    cv::Mat image   = cv::imread(test_image);
+    auto result     = e2e->detect(image);
+    INFO("r--plate number: %s..%s...%s", result[0].number.c_str(), result[0].color.c_str(),
+         result[0].plate_type.c_str());
+}
 int app_plate() {
-    yolo_plate_test();
+    // yolo_plate_test();
+    plate_e2e_test();
     return 0;
 }

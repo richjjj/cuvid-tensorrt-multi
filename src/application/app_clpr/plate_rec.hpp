@@ -16,13 +16,51 @@ const vector<string> CHARS = {
     "领", "民", "航", "深", "0",  "1",  "2",  "3",  "4",  "5",  "6",  "7",  "8",  "9",  "A",  "B",  "C",  "D",  "E",
     "F",  "G",  "H",  "J",  "K",  "L",  "M",  "N",  "P",  "Q",  "R",  "S",  "T",  "U",  "V",  "W",  "X",  "Y",  "Z"};
 
-using plateNO = string;
-using Input   = tuple<Mat, float *>;
+enum class PlateColor { black = 0, blue, green, white, yellow, unknown };
+struct plateResult {
+    PlateColor color{PlateColor::unknown};
+    float color_confidence{0};
+    string number{};
+    float number_confidence{0};
+    string color_str() const {
+        string tmp{};
+        switch (color) {
+            case PlateColor::black:
+                tmp = "black";
+                break;
+            case PlateColor::blue:
+                tmp = "blue";
+                break;
+            case PlateColor::green:
+                tmp = "green";
+                break;
+            case PlateColor::white:
+                tmp = "white";
+                break;
+            case PlateColor::yellow:
+                tmp = "yellow";
+                break;
+            default:
+                tmp = "unknown";
+                break;
+        }
+        return tmp;
+    }
+    string print_info() const {
+        auto tmp = color_str();
+        stringstream result{};
+        result << "number: " << number << ", number_socre: " << number_confidence << ", color: " << tmp
+               << ", color_score: " << color_confidence;
+        return result.str();
+    }
+};
+
+using RecInput = tuple<Mat, float *>;
 
 class RecInfer {
 public:
-    virtual shared_future<plateNO> commit(const Input &input)                   = 0;
-    virtual vector<shared_future<plateNO>> commits(const vector<Input> &inputs) = 0;
+    virtual shared_future<plateResult> commit(const RecInput &input)                   = 0;
+    virtual vector<shared_future<plateResult>> commits(const vector<RecInput> &inputs) = 0;
 };
 
 shared_ptr<RecInfer> create_rec(const string &engine_file, int gpuid = 0);

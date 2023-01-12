@@ -50,8 +50,8 @@ struct AffineMatrixRec {
         return cv::Mat(2, 3, CV_32F, i2d);
     }
 };
-using RecControllerImpl = InferController<Input,               // input
-                                          plateNO,             // output
+using RecControllerImpl = InferController<RecInput,            // input
+                                          plateResult,         // output
                                           tuple<string, int>,  // start param
                                           AffineMatrixRec      // additional
                                           >;
@@ -80,8 +80,8 @@ public:
         engine->print();
         int max_batch_size = engine->get_max_batch_size();
         auto input         = engine->tensor("images");
-        auto output        = engine->tensor("output");  // b x 21
-        auto output_size   = output->size(1);
+        auto output_rec    = engine->tensor("output_1");  // n x 21 x 78
+        auto output_color  = engine->tensor("output_2");  // n x 5
         input_width_       = input->size(3);
         input_height_      = input->size(2);
         gpu_               = gpuid;
@@ -104,19 +104,42 @@ public:
 
             engine->forward(false);
             for (int ibatch = 0; ibatch < infer_batch_size; ++ibatch) {
-                auto &job                 = fetch_jobs[ibatch];
-                float *image_based_output = output->cpu<float>(ibatch);
-                auto plate_str            = job.output;
-                // decode
-                string pre_str = "";
-                for (int x = 0; x < output_size; x++) {
-                    int index = image_based_output[x];
+                auto &job         = fetch_jobs[ibatch];
+                auto plate_result = job.output;
+
+                // plate number decode
+                float *image_based_output_rec = output_rec->cpu<float>(ibatch);
+                auto s1                       = output_rec->size(1);  // 21
+                auto s2                       = output_rec->size(2);  // 78
+
+                string pre_str{};
+                float number_socre{0.};
+                for (int x = 0; x < s1; x++) {
+                    auto max_value =
+                        *max_element(image_based_output_rec + x * s2, image_based_output_rec + (x + 1) * s2);
+                    auto index = max_element(image_based_output_rec + x * s2, image_based_output_rec + (x + 1) * s2) -
+                                 (image_based_output_rec + x * s2);
+                    // INFO("curren index is %d, value is %f", index, max_value);
                     if (CHARS[index] != "#" && CHARS[index] != pre_str) {
-                        plate_str += CHARS[index];
+                        plate_result.number += CHARS[index];
+                        number_socre += max_value;
                     }
                     pre_str = CHARS[index];
                 }
-                job.pro->set_value(plate_str);
+                plate_result.number_confidence = number_socre / plate_result.number.size();
+                // plate color
+
+                float *image_based_output_color = output_color->cpu<float>(ibatch);
+                // for (int z = 0; z < 5; z++) {
+                //     INFO("color score is %f", image_based_output_color[z]);
+                // }
+                auto color_socre = *max_element(image_based_output_color, image_based_output_color + 5);
+                int color_index =
+                    max_element(image_based_output_color, image_based_output_color + 5) - image_based_output_color;
+                plate_result.color            = static_cast<PlateColor>(color_index);
+                plate_result.color_confidence = color_socre;
+                //
+                job.pro->set_value(plate_result);
             }
             fetch_jobs.clear();
         };
@@ -124,15 +147,15 @@ public:
         tensor_allocator_.reset();
         INFO("Engine destroy.");
     }
-    virtual shared_future<plateNO> commit(const Input &input) override {
+    virtual shared_future<plateResult> commit(const RecInput &input) override {
         return RecControllerImpl::commit(input);
     }
 
-    virtual vector<shared_future<plateNO>> commits(const vector<Input> &inputs) override {
+    virtual vector<shared_future<plateResult>> commits(const vector<RecInput> &inputs) override {
         return RecControllerImpl::commits(inputs);
     }
 
-    virtual bool preprocess(Job &job, const Input &input) override {
+    virtual bool preprocess(Job &job, const RecInput &input) override {
         if (tensor_allocator_ == nullptr) {
             INFOE("tensor_allocator_ is nullptr");
             return false;

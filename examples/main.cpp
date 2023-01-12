@@ -4,12 +4,14 @@
 #include <common/ilogger.hpp>
 #include <functional>
 
+#ifndef JETSON
 int app_demuxer();
 int app_hard_decode();
-int app_yolo();
-int app_yolopose();
 int app_multi_camera();
 int app_pipeline();
+#endif
+int app_yolo();
+int app_yolopose();
 int app_plate();
 int main(int argc, char **argv) {
     const char *method = "yolo";

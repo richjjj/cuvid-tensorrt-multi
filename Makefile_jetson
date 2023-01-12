@@ -31,8 +31,8 @@ cu_mk   := $(cu_objs:.cu.o=.cu.mk)
 
 # 定义opencv和cuda需要用到的库文件
 link_opencv    := opencv_core opencv_imgproc opencv_imgcodecs opencv_videoio
-link_cuda      := cuda cudart cudnn nvcuvid nvidia-encode
-link_ffmpeg    := avcodec avformat swresample swscale avutil
+link_cuda      := cuda cudart cudnn
+# link_ffmpeg    := avcodec avformat swresample swscale avutil
 link_tensorRT  := nvinfer nvparsers nvinfer_plugin protobuf
 link_sys       := stdc++ dl
 link_librarys  := $(link_opencv) $(link_cuda) $(link_tensorRT) $(link_sys) $(link_ffmpeg)
@@ -45,7 +45,7 @@ include_protobuf  := $(cpp_pkg)/protobuf/include
 include_cuvid     := $(cpp_pkg)/cuvid/include
 include_opencv    := /usr/local/include/opencv4
 
-lib_all        := $(cuda_home)/lib64 $(cpp_pkg)/protobuf/lib $(syslib) /lib/x86_64-linux-gnu
+lib_all        := $(cuda_home)/lib64 $(cpp_pkg)/protobuf/lib $(syslib) 
 
 # 定义头文件路径，请注意斜杠后边不能有空格
 # 只需要写路径，不需要写-I
@@ -93,11 +93,11 @@ endif
 $(name)   : $(workdir)/$(name)
 $(example): $(workdir)/$(example)
 $(example): $(name)
-# jetson:
-# 	@mkdir jetson_nonsupport
-# 	@mv example/app_cuvid* jetson_nonsupport
-# 	@mv src/application/app_decode_inference_pipeline jetson_nonsupport
-# 	@mv src/ffhdd jetson_nonsupport
+jetson:
+	@mkdir jetson_nonsupport
+	@mv example/app_cuvid* jetson_nonsupport
+	@mv src/application/app_decode_inference_pipeline jetson_nonsupport
+	@mv src/ffhdd jetson_nonsupport
 
 all       : $(name)
 	@echo $(library_path_export) && echo $(link_librarys)
