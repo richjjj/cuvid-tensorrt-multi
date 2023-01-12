@@ -8,7 +8,7 @@ exampledir:= examples
 objdir    := objs
 stdcpp    := c++14
 cuda_home := /usr/local/cuda
-cpp_pkg   := /cangku_workspace/repos/hard_decode_trt_multicamera/third_party
+cpp_pkg   := $(shell `pwd`)/third_party
 syslib    := 
 cuda_arch := 
 
@@ -43,7 +43,7 @@ include_cuda      := $(cuda_home)/include
 include_tensorRT  := 
 include_protobuf  := $(cpp_pkg)/protobuf/include
 include_cuvid     := $(cpp_pkg)/cuvid/include
-include_opencv    := /usr/local/include/opencv4
+include_opencv    := /usr/include/opencv4
 
 lib_all        := $(cuda_home)/lib64 $(cpp_pkg)/protobuf/lib $(syslib) 
 
@@ -109,6 +109,10 @@ yolo       : $(example)
 
 plate      : $(example)
 	@cd $(workdir) && ./$(example) plate
+install_plate:$(plate)
+	@mkidr $(workdir)/install_plate
+	@cp src/application/app_clpr/plate_e2e.hpp $(workdir)/install_plate
+	@cp $(workdir)/libpro.so $(workdir)/install_plate
 
 yolopose   : $(example)
 	@cd $(workdir) && ./$(example) yolopose

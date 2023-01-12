@@ -8,7 +8,7 @@ exampledir:= examples
 objdir    := objs
 stdcpp    := c++14
 cuda_home := /usr/local/cuda
-cpp_pkg   := /cangku_workspace/repos/hard_decode_trt_multicamera/third_party
+cpp_pkg   := $(shell `pwd`)/third_party
 syslib    := 
 cuda_arch := 
 
@@ -77,8 +77,8 @@ link_librarys := $(foreach item,$(link_librarys),-l$(item))
 # 如果是其他显卡，请修改-gencode=arch=compute_75,code=sm_75为对应显卡的能力
 # 显卡对应的号码参考这里：https://developer.nvidia.com/zh-cn/cuda-gpus#compute
 # 如果是 jetson nano，提示找不到-m64指令，请删掉 -m64选项。不影响结果
-cpp_compile_flags := -std=$(stdcpp) -w -g -O0 -m64 -fPIC -fopenmp -pthread
-cu_compile_flags  := -std=$(stdcpp) -w -g -O0 -m64 $(cuda_arch) -Xcompiler "$(cpp_compile_flags)"
+cpp_compile_flags := -std=$(stdcpp) -w -g -O0 -fPIC -fopenmp -pthread
+cu_compile_flags  := -std=$(stdcpp) -w -g -O0 $(cuda_arch) -Xcompiler "$(cpp_compile_flags)"
 link_flags        := -pthread -fopenmp -Wl,-rpath='$$ORIGIN'
 
 cpp_compile_flags += $(include_paths)
