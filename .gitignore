@@ -9,4 +9,6 @@ workspace/*.jpg
 *.trtmodel
 *.onnx
 !yolov5s_pose.onnx
+!plate_rec_color.onnx
+!plate_detect.onnx
 compile_commands.json
