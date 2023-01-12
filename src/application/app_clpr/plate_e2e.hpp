@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+
 namespace Clpr {
 using namespace std;
 using namespace cv;

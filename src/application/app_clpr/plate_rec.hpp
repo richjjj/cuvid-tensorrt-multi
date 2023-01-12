@@ -26,19 +26,19 @@ struct plateResult {
         string tmp{};
         switch (color) {
             case PlateColor::black:
-                tmp = "black";
+                tmp = "黑";
                 break;
             case PlateColor::blue:
-                tmp = "blue";
+                tmp = "蓝";
                 break;
             case PlateColor::green:
-                tmp = "green";
+                tmp = "绿";
                 break;
             case PlateColor::white:
-                tmp = "white";
+                tmp = "白";
                 break;
             case PlateColor::yellow:
-                tmp = "yellow";
+                tmp = "黄";
                 break;
             default:
                 tmp = "unknown";

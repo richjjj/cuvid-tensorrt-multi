@@ -8,9 +8,11 @@ exampledir:= examples
 objdir    := objs
 stdcpp    := c++14
 cuda_home := /usr/local/cuda
-cpp_pkg   := $(shell `pwd`)/third_party
+cpp_pkg   := $(shell pwd)/third_party
 syslib    := 
 cuda_arch := 
+# 宏定义
+DEFS := -DJETSON
 
 # 定义cpp的路径查找和依赖项mk文件
 cpp_srcs := $(shell find $(srcdir) -name "*.cpp")
@@ -77,7 +79,7 @@ link_librarys := $(foreach item,$(link_librarys),-l$(item))
 # 如果是其他显卡，请修改-gencode=arch=compute_75,code=sm_75为对应显卡的能力
 # 显卡对应的号码参考这里：https://developer.nvidia.com/zh-cn/cuda-gpus#compute
 # 如果是 jetson nano，提示找不到-m64指令，请删掉 -m64选项。不影响结果
-cpp_compile_flags := -std=$(stdcpp) -w -g -O0 -m64 -fPIC -fopenmp -pthread
+cpp_compile_flags := -std=$(stdcpp) -w -g -O0 -m64 -fPIC -fopenmp -pthread $(DEFS)
 cu_compile_flags  := -std=$(stdcpp) -w -g -O0 -m64 $(cuda_arch) -Xcompiler "$(cpp_compile_flags)"
 link_flags        := -pthread -fopenmp -Wl,-rpath='$$ORIGIN'
 
@@ -95,7 +97,7 @@ $(example): $(workdir)/$(example)
 $(example): $(name)
 jetson:
 	@mkdir jetson_nonsupport
-	@mv example/app_cuvid* jetson_nonsupport
+	@mv examples/app_cuvid* jetson_nonsupport
 	@mv src/application/app_decode_inference_pipeline jetson_nonsupport
 	@mv src/ffhdd jetson_nonsupport
 

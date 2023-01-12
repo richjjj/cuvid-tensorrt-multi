@@ -19,4 +19,4 @@
     ```
 
 # TODO
-- [ ] 定义require，从http服务下载onnx文件
+- [ ] 定义require，从http服务下载onnx文件和第三方依赖库
