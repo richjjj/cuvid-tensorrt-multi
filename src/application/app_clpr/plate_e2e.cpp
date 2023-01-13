@@ -81,7 +81,7 @@ public:
         yolo_plate_ = get_yolo_plate(TRT::Mode::FP16, det_name, gpuid);
         if (yolo_plate_ == nullptr)
             return false;
-        rec_ = get_plate_rec(TRT::Mode::FP32, rec_name, gpuid);
+        rec_ = get_plate_rec(TRT::Mode::FP16, rec_name, gpuid);
         if (rec_ == nullptr)
             return false;
         return true;
@@ -145,6 +145,7 @@ public:
     }
     virtual int getFindCarResult(const e2eInput& input, const Carports& carports,
                                  std::vector<plateInfo>& results) override {
+        auto t0 = iLogger::timestamp_now_float();
         vector<DetInput> tmp;
         tmp.reserve(carports.size());
         for (auto& c : carports) {
@@ -154,13 +155,18 @@ public:
         auto det_reults_array = yolo_plate_->commits(tmp);
         for (int i = 0; i < det_reults_array.size(); ++i) {
             // 只取每个det carport 的第一个结果
+            // DEBUG 测试耗时
+            auto t1         = iLogger::timestamp_now_float();
             auto det_result = det_reults_array[i].get();
+            auto t2         = iLogger::timestamp_now_float();
             if (!det_result.empty()) {
                 // 只取score值最大的
                 sort(det_result.begin(), det_result.end(),
                      [](auto& a, auto& b) { return a.confidence > b.confidence; });
                 // 车牌识别
+                auto t3                         = iLogger::timestamp_now_float();
                 auto rec_output                 = rec_->commit(make_tuple(input, det_result[0].landmarks));
+                auto t4                         = iLogger::timestamp_now_float();
                 results[i].bottom               = det_result[0].bottom;
                 results[i].top                  = det_result[0].top;
                 results[i].left                 = det_result[0].left;
@@ -168,15 +174,22 @@ public:
                 results[i].plateRect_confidence = det_result[0].confidence;
                 results[i].plateType            = det_result[0].class_label ? "multi" : "single";
                 results[i].carType              = "轿车";
+
                 // 获取车牌结果
                 auto r = rec_output.get();
                 // 肯定有结果
+
                 results[i].plateColor            = r.color_str();
                 results[i].plateColor_confidence = r.color_confidence;
                 results[i].plateNO               = r.number;
                 results[i].plateNO_confidence    = r.number_confidence;
+                auto t5                          = iLogger::timestamp_now_float();
+                INFO("cost---- det: %fms;copy: %fms;rec: %fms;copy: %fms", float(t2 - t1), float(t3 - t2),
+                     float(t4 - t3), float(t5 - t4));
             }
         }
+        auto tn = iLogger::timestamp_now_float();
+        INFO("function cost: %fms", float(tn - t0));
         return 0;
     }
 

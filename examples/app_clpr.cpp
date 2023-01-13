@@ -130,7 +130,7 @@ static void yolo_plate_test() {
     // auto results = yolo_plate->commit(image).get();
     for (auto& r : results) {
         auto plate_result = plate_rec->commit(make_tuple(image, r.landmarks)).get();
-        INFO("current plateNO is %s", plate_result.print_info().c_str());
+        INFO("current plateNO is \n%s", plate_result.print_info().c_str());
         cv::rectangle(image, cv::Point(r.left, r.top), cv::Point(r.right, r.bottom), cv::Scalar(0, 255, 0), 2);
         for (int j = 0; j < 4; ++j) {
             cv::circle(image, cv::Point(r.landmarks[j * 2 + 0], r.landmarks[j * 2 + 1]), 3, cv::Scalar(0, 0, 255), -1,
@@ -147,12 +147,22 @@ static void yolo_plate_test() {
 }
 
 static void plate_e2e_test() {
-    auto e2e        = Clpr::create_e2e("plate_detect", "plate_rec_color");
-    auto test_image = "exp/plate.jpg";
+    auto e2e = Clpr::create_e2e("plate_detect-blazeface_fpn-384", "plate_rec_color");
+
+    auto test_image = "exp/test1.jpg";
     cv::Mat image   = cv::imread(test_image);
-    auto result     = e2e->detect(image);
-    INFO("r--plate number: %s..%s...%s", result[0].plateNO.c_str(), result[0].plateColor.c_str(),
-         result[0].plateType.c_str());
+    // warm up
+    for (int i = 0; i < 20; ++i) {
+        e2e->detect(image);
+    }
+    auto t1 = iLogger::timestamp_now_float();
+    auto rd = e2e->detect(image);
+    auto t2 = iLogger::timestamp_now_float();
+    INFO("detect function cost: %fms.", float(t2 - t1));
+    for (const auto& r : rd) {
+        INFO("plate info is\n%s", r.print_info().c_str());
+        cv::rectangle(image, r.plateRect(), cv::Scalar(0, 0, 255), 2);
+    }
 
     // 测试find car
     Clpr::Polygon polygon1{cv::Point(141, 1105), cv::Point(877, 1134), cv::Point(1100, 533), cv::Point(550, 482)};
@@ -161,11 +171,15 @@ static void plate_e2e_test() {
     Clpr::Carports carports1{polygon2, polygon1, polygon3};
     test_image = "exp/test1.jpg";
     image      = cv::imread(test_image);
+
+    // 耗时
+    auto begin_timer = iLogger::timestamp_now_float();
     std::vector<Clpr::plateInfo> results;
     e2e->getFindCarResult(image, carports1, results);
+    auto end_timer = iLogger::timestamp_now_float();
+    INFO("getFindCarResult function cost %.2f ms.", (float)(end_timer - begin_timer));
     for (const auto& r : results) {
-        std::cout << "plateNO " << r.plateNO << std::endl;
-        std::cout << "plateColor " << r.plateColor << std::endl;
+        INFO("plate info is\n%s", r.print_info().c_str());
         cv::rectangle(image, r.plateRect(), cv::Scalar(0, 0, 255), 2);
     }
     cv::polylines(image, carports1, true, (0, 255, 255));

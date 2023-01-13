@@ -11,4 +11,5 @@ workspace/*.jpg
 !yolov5s_pose.onnx
 !plate_rec_color.onnx
 !plate_detect.onnx
+!plate*.onnx
 compile_commands.json

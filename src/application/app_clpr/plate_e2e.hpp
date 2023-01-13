@@ -29,6 +29,14 @@ struct plateInfo {
     Rect plateRect() const {
         return Rect(left, top, right - left, bottom - top);
     };
+    string print_info() const {
+        stringstream info{};
+        info << "plateNO: " << plateNO << "\n"
+             << "plateColor: " << plateColor << "\n"
+             << "plateRect: [" << left << ", " << top << ", " << right << ", " << bottom << "]"
+             << "\n";
+        return info.str();
+    }
 };
 
 using Polygon  = std::vector<cv::Point>;
