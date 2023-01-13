@@ -151,8 +151,25 @@ static void plate_e2e_test() {
     auto test_image = "exp/plate.jpg";
     cv::Mat image   = cv::imread(test_image);
     auto result     = e2e->detect(image);
-    INFO("r--plate number: %s..%s...%s", result[0].number.c_str(), result[0].color.c_str(),
-         result[0].plate_type.c_str());
+    INFO("r--plate number: %s..%s...%s", result[0].plateNO.c_str(), result[0].plateColor.c_str(),
+         result[0].plateType.c_str());
+
+    // 测试find car
+    Clpr::Polygon polygon1{cv::Point(141, 1105), cv::Point(877, 1134), cv::Point(1100, 533), cv::Point(550, 482)};
+    Clpr::Polygon polygon2{cv::Point(874, 1134), cv::Point(1574, 1157), cv::Point(1505, 513), cv::Point(1083, 527)};
+    Clpr::Polygon polygon3{cv::Point(1656, 1148), cv::Point(2291, 1141), cv::Point(1892, 495), cv::Point(1499, 504)};
+    Clpr::Carports carports1{polygon2, polygon1, polygon3};
+    test_image = "exp/test1.jpg";
+    image      = cv::imread(test_image);
+    std::vector<Clpr::plateInfo> results;
+    e2e->getFindCarResult(image, carports1, results);
+    for (const auto& r : results) {
+        std::cout << "plateNO " << r.plateNO << std::endl;
+        std::cout << "plateColor " << r.plateColor << std::endl;
+        cv::rectangle(image, r.plateRect(), cv::Scalar(0, 0, 255), 2);
+    }
+    cv::polylines(image, carports1, true, (0, 255, 255));
+    cv::imwrite("predict2.jpg", image);
 }
 int app_plate() {
     // yolo_plate_test();

@@ -8,7 +8,7 @@ exampledir:= examples
 objdir    := objs
 stdcpp    := c++14
 cuda_home := /usr/local/cuda
-cpp_pkg   := $(shell `pwd`)/third_party
+cpp_pkg   := $(shell pwd)/third_party
 syslib    := 
 cuda_arch := 
 

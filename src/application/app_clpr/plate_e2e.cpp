@@ -94,20 +94,21 @@ public:
         for (int i = 0; i < det_result.size(); i++) {
             rec_inputs.emplace_back(make_tuple(input, det_result[i].landmarks));
 
-            tmp[i].bottom         = det_result[i].bottom;
-            tmp[i].top            = det_result[i].top;
-            tmp[i].left           = det_result[i].left;
-            tmp[i].right          = det_result[i].right;
-            tmp[i].box_confidence = det_result[i].confidence;
-            tmp[i].plate_type     = det_result[i].class_label ? "multi" : "single";
+            tmp[i].bottom               = det_result[i].bottom;
+            tmp[i].top                  = det_result[i].top;
+            tmp[i].left                 = det_result[i].left;
+            tmp[i].right                = det_result[i].right;
+            tmp[i].plateRect_confidence = det_result[i].confidence;
+            tmp[i].plateType            = det_result[i].class_label ? "multi" : "single";
         }
         auto rec_result = rec_->commits(rec_inputs);
         for (int i = 0; i < rec_result.size(); ++i) {
-            auto r                   = rec_result[i].get();
-            tmp[i].color             = r.color_str();
-            tmp[i].color_confidence  = r.color_confidence;
-            tmp[i].number            = r.number;
-            tmp[i].number_confidence = r.number_confidence;
+            auto r                       = rec_result[i].get();
+            tmp[i].plateColor            = r.color_str();
+            tmp[i].plateColor_confidence = r.color_confidence;
+            tmp[i].plateNO               = r.number;
+            tmp[i].plateNO_confidence    = r.number_confidence;
+            tmp[i].carType               = "轿车";
         }
         return std::move(tmp);
     }
@@ -123,23 +124,60 @@ public:
             for (int i = 0; i < det_result.size(); i++) {
                 rec_inputs.emplace_back(make_tuple(inputs[j], det_result[i].landmarks));
 
-                tmp[i].bottom         = det_result[i].bottom;
-                tmp[i].top            = det_result[i].top;
-                tmp[i].left           = det_result[i].left;
-                tmp[i].right          = det_result[i].right;
-                tmp[i].box_confidence = det_result[i].confidence;
-                tmp[i].plate_type     = det_result[i].class_label ? "multi" : "single";
+                tmp[i].bottom               = det_result[i].bottom;
+                tmp[i].top                  = det_result[i].top;
+                tmp[i].left                 = det_result[i].left;
+                tmp[i].right                = det_result[i].right;
+                tmp[i].plateRect_confidence = det_result[i].confidence;
+                tmp[i].plateType            = det_result[i].class_label ? "multi" : "single";
             }
             auto rec_result = rec_->commits(rec_inputs);
             for (int i = 0; i < rec_result.size(); ++i) {
-                auto r                   = rec_result[i].get();
-                tmp[i].color             = r.color_str();
-                tmp[i].color_confidence  = r.color_confidence;
-                tmp[i].number            = r.number;
-                tmp[i].number_confidence = r.number_confidence;
+                auto r                       = rec_result[i].get();
+                tmp[i].plateColor            = r.color_str();
+                tmp[i].plateColor_confidence = r.color_confidence;
+                tmp[i].plateNO               = r.number;
+                tmp[i].plateNO_confidence    = r.number_confidence;
+                tmp[i].carType               = "轿车";
             }
         }
         return move(tmp_array);
+    }
+    virtual int getFindCarResult(const e2eInput& input, const Carports& carports,
+                                 std::vector<plateInfo>& results) override {
+        vector<DetInput> tmp;
+        tmp.reserve(carports.size());
+        for (auto& c : carports) {
+            tmp.emplace_back(input, c);
+        }
+        results.resize(carports.size());
+        auto det_reults_array = yolo_plate_->commits(tmp);
+        for (int i = 0; i < det_reults_array.size(); ++i) {
+            // 只取每个det carport 的第一个结果
+            auto det_result = det_reults_array[i].get();
+            if (!det_result.empty()) {
+                // 只取score值最大的
+                sort(det_result.begin(), det_result.end(),
+                     [](auto& a, auto& b) { return a.confidence > b.confidence; });
+                // 车牌识别
+                auto rec_output                 = rec_->commit(make_tuple(input, det_result[0].landmarks));
+                results[i].bottom               = det_result[0].bottom;
+                results[i].top                  = det_result[0].top;
+                results[i].left                 = det_result[0].left;
+                results[i].right                = det_result[0].right;
+                results[i].plateRect_confidence = det_result[0].confidence;
+                results[i].plateType            = det_result[0].class_label ? "multi" : "single";
+                results[i].carType              = "轿车";
+                // 获取车牌结果
+                auto r = rec_output.get();
+                // 肯定有结果
+                results[i].plateColor            = r.color_str();
+                results[i].plateColor_confidence = r.color_confidence;
+                results[i].plateNO               = r.number;
+                results[i].plateNO_confidence    = r.number_confidence;
+            }
+        }
+        return 0;
     }
 
 private:

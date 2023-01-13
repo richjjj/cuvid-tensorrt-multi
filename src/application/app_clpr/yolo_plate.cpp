@@ -19,16 +19,26 @@ struct AffineMatrix {
     float i2d[6];  // image to dst(network), 2x3 matrix
     float d2i[6];  // dst to image, 2x3 matrix
 
-    void compute(const cv::Size &from, const cv::Size &to) {
-        float scale_x = to.width / (float)from.width;
-        float scale_y = to.height / (float)from.height;
-        float scale   = std::min(scale_x, scale_y);
-        i2d[0]        = scale;
-        i2d[1]        = 0;
-        i2d[2]        = -scale * from.width * 0.5 + to.width * 0.5 + scale * 0.5 - 0.5;
-        i2d[3]        = 0;
-        i2d[4]        = scale;
-        i2d[5]        = -scale * from.height * 0.5 + to.height * 0.5 + scale * 0.5 - 0.5;
+    void compute(const cv::Size &image_size, const cv::Rect &box, const cv::Size &net_size) {
+        Rect box_ = box;
+        if (box_.width == 0 || box_.height == 0) {
+            box_.width  = image_size.width;
+            box_.height = image_size.height;
+            box_.x      = 0;
+            box_.y      = 0;
+        }
+
+        float rate       = box_.width > 100 ? 0.1f : 0.15f;
+        float pad_width  = box_.width * (1 + 2 * rate);
+        float pad_height = box_.height * (1 + 1 * rate);
+        float scale      = min(net_size.width / pad_width, net_size.height / pad_height);
+        i2d[0]           = scale;
+        i2d[1]           = 0;
+        i2d[2] = -(box_.x - box_.width * 1 * rate + pad_width * 0.5) * scale + net_size.width * 0.5 + scale * 0.5 - 0.5;
+        i2d[3] = 0;
+        i2d[4] = scale;
+        i2d[5] =
+            -(box_.y - box_.height * 1 * rate + pad_height * 0.5) * scale + net_size.height * 0.5 + scale * 0.5 - 0.5;
 
         cv::Mat m2x3_i2d(2, 3, CV_32F, i2d);
         cv::Mat m2x3_d2i(2, 3, CV_32F, d2i);
@@ -39,7 +49,7 @@ struct AffineMatrix {
         return cv::Mat(2, 3, CV_32F, i2d);
     }
 };
-using DetControllerImpl = InferController<Mat,                 // input
+using DetControllerImpl = InferController<DetInput,            // input
                                           PlateRegionArray,    // output
                                           tuple<string, int>,  // start param
                                           AffineMatrix         // additional
@@ -156,12 +166,12 @@ public:
         INFO("Engine destroy.");
     }
 
-    virtual bool preprocess(Job &job, const Mat &image) override {
+    virtual bool preprocess(Job &job, const DetInput &detinput) override {
         if (tensor_allocator_ == nullptr) {
             INFOE("tensor_allocator_ is nullptr");
             return false;
         }
-
+        auto &image = detinput.image;
         if (image.empty()) {
             INFOE("Image is empty");
             return false;
@@ -188,7 +198,7 @@ public:
 
         preprocess_stream = tensor->get_stream();
         Size input_size(input_width_, input_height_);
-        job.additional.compute(image.size(), input_size);
+        job.additional.compute(image.size(), detinput.roiRect, input_size);
         tensor->resize(1, 3, input_height_, input_width_);
 
         size_t size_image           = image.cols * image.rows * 3;
@@ -211,12 +221,24 @@ public:
         return true;
     }
 
-    virtual vector<shared_future<PlateRegionArray>> commits(const vector<Mat> &images) override {
+    virtual vector<shared_future<PlateRegionArray>> commits(const vector<DetInput> &images) override {
         return DetControllerImpl::commits(images);
     }
 
-    virtual shared_future<PlateRegionArray> commit(const Mat &image) override {
+    virtual shared_future<PlateRegionArray> commit(const DetInput &image) override {
         return DetControllerImpl::commit(image);
+    }
+    virtual vector<shared_future<PlateRegionArray>> commits(const vector<Mat> &images) override {
+        vector<DetInput> tmp;
+        tmp.reserve(images.size());
+        for (auto &im : images) {
+            tmp.emplace_back(im);
+        }
+        //         std::vector<...> attributes;
+        // attributes.reserve(instances.size());
+        // std::transform(instances.begin(), instances.end(), std::back_inserter(attributes),
+        //                [](auto&& obj) { return obj.a; });
+        return DetControllerImpl::commits(tmp);
     }
 
 private:
@@ -243,7 +265,7 @@ void image_to_tensor(const cv::Mat &image, shared_ptr<TRT::Tensor> &tensor, int 
 
     Size input_size(tensor->size(3), tensor->size(2));
     AffineMatrix affine;
-    affine.compute(image.size(), input_size);
+    affine.compute(image.size(), Rect(0, 0, image.cols, image.rows), input_size);
 
     size_t size_image           = image.cols * image.rows * 3;
     size_t size_matrix          = iLogger::upbound(sizeof(affine.d2i), 32);
