@@ -50,7 +50,8 @@ int main(int argc, char **argv) {
     const char *method = "yolo";
     if (argc > 1) {
         method = argv[1];
-    } else if (strcmp(method, "plate") == 0) {
+    }
+    if (strcmp(method, "plate") == 0) {
         app_plate();
     } else {
         app_plate();
