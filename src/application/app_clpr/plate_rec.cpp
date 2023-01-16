@@ -160,7 +160,12 @@ public:
             INFOE("tensor_allocator_ is nullptr");
             return false;
         }
-
+        auto &image = get<0>(input);
+        auto box    = get<1>(input);
+        if (image.empty()) {
+            INFOE("Image is empty");
+            return false;
+        }
         job.mono_tensor = tensor_allocator_->query();
         if (job.mono_tensor == nullptr) {
             INFOE("Tensor allocator query failed.");
@@ -174,9 +179,6 @@ public:
             tensor = make_shared<TRT::Tensor>();
             tensor->set_workspace(make_shared<TRT::MixMemory>());
         }
-
-        auto &image = get<0>(input);
-        auto box    = get<1>(input);
         Size input_size(input_width_, input_height_);
         job.additional.compute(box, input_size);
 

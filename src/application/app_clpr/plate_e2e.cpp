@@ -199,6 +199,8 @@ private:
 };
 shared_ptr<e2eInfer> create_e2e(const string& det_name, const string& rec_name, float confidence_threshold,
                                 float nms_threshold, int gpuid) {
+    // 设置logg
+    iLogger::set_logger_save_directory("/tmp/clpr");
     shared_ptr<e2eInferImpl> instance(new e2eInferImpl());
     if (!instance->startup(det_name, rec_name)) {
         instance.reset();
