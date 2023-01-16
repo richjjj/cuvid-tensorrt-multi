@@ -29,7 +29,8 @@ cpp_objs_example := $(cpp_objs_example:$(exampledir)/%=$(objdir)/%)
 cpp_mk_example   := $(cpp_objs_example:.cpp.o=.cpp.mk)
 
 # 定义cu文件的路径查找和依赖项mk文件
-cu_srcs := $(shell find $(srcdir) -name "*.cu")
+cu_srcs := $(shell find $(srcdir)/tensorRT -name "*.cu")
+cu_srcs += $(shell find $(srcdir)/application/app_clpr -name "*.cu")
 cu_objs := $(cu_srcs:.cu=.cu.o)
 cu_objs := $(cu_objs:$(srcdir)/%=$(objdir)/%)
 cu_mk   := $(cu_objs:.cu.o=.cu.mk)
