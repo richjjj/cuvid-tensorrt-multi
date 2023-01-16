@@ -147,7 +147,7 @@ static void yolo_plate_test() {
 }
 */
 static void plate_e2e_test() {
-    auto e2e = Clpr::create_e2e("plate_detect-blazeface_fpn-384", "plate_rec_color");
+    auto e2e = Clpr::create_e2e("plate_detect-blazeface_fpn-384", "plate_rec_color", 0.4f);
 
     auto test_image = "exp/test1.jpg";
     cv::Mat image   = cv::imread(test_image);
