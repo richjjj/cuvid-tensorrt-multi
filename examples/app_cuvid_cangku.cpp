@@ -1,4 +1,4 @@
-#include "app_decode_inference_pipeline/pipeline.hpp"
+#include "app_cuvid_cangku/pipeline.hpp"
 #include "common/ilogger.hpp"
 #include <iostream>
 #include "common/json.hpp"
