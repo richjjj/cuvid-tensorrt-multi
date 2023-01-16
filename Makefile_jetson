@@ -10,17 +10,20 @@ stdcpp    := c++14
 cuda_home := /usr/local/cuda
 cpp_pkg   := $(shell pwd)/third_party
 syslib    := 
-cuda_arch := 
+cuda_arch := -gencode=arch=compute_53,code=sm_53
 # 宏定义
 DEFS := -DJETSON
 
 # 定义cpp的路径查找和依赖项mk文件
-cpp_srcs := $(shell find $(srcdir) -name "*.cpp")
+cpp_srcs := $(shell find $(srcdir)/tensorRT -name "*.cpp")
+cpp_srcs += $(shell find $(srcdir)/application/app_clpr -name "*.cpp")
+# 不要yolo
 cpp_objs := $(cpp_srcs:.cpp=.cpp.o)
 cpp_objs := $(cpp_objs:$(srcdir)/%=$(objdir)/%)
 cpp_mk   := $(cpp_objs:.cpp.o=.cpp.mk)
 
-cpp_srcs_example := $(shell find $(exampledir) -name "*.cpp")
+# cpp_srcs_example := $(shell find $(exampledir) -name "*.cpp")
+cpp_srcs_example := $(exampledir)/app_clpr.cpp $(exampledir)/main.cpp 
 cpp_objs_example := $(cpp_srcs_example:.cpp=.cpp.o)
 cpp_objs_example := $(cpp_objs_example:$(exampledir)/%=$(objdir)/%)
 cpp_mk_example   := $(cpp_objs_example:.cpp.o=.cpp.mk)
@@ -32,22 +35,22 @@ cu_objs := $(cu_objs:$(srcdir)/%=$(objdir)/%)
 cu_mk   := $(cu_objs:.cu.o=.cu.mk)
 
 # 定义opencv和cuda需要用到的库文件
-link_opencv    := opencv_core opencv_imgproc opencv_imgcodecs opencv_videoio
+link_opencv    := opencv_core opencv_imgproc opencv_imgcodecs
 link_cuda      := cuda cudart cudnn
 # link_ffmpeg    := avcodec avformat swresample swscale avutil
 link_tensorRT  := nvinfer nvparsers nvinfer_plugin protobuf
 link_sys       := stdc++ dl
-link_librarys  := $(link_opencv) $(link_cuda) $(link_tensorRT) $(link_sys) $(link_ffmpeg)
+link_librarys  := $(link_opencv) $(link_cuda) $(link_tensorRT) $(link_sys)
 
 # 定义cuda和opencv的库路径
 nvcc              := $(cuda_home)/bin/nvcc -ccbin=$(cc)
 include_cuda      := $(cuda_home)/include
 include_tensorRT  := 
-include_protobuf  := $(cpp_pkg)/protobuf/include
+include_protobuf  := $(cpp_pkg)/protobuf-3.11.4-jetson/include
 include_cuvid     := $(cpp_pkg)/cuvid/include
 include_opencv    := /usr/include/opencv4
 
-lib_all        := $(cuda_home)/lib64 $(cpp_pkg)/protobuf/lib $(syslib) 
+lib_all        := $(cuda_home)/lib64 $(cpp_pkg)/protobuf-3.11.4-jetson/lib $(syslib) 
 
 # 定义头文件路径，请注意斜杠后边不能有空格
 # 只需要写路径，不需要写-I
@@ -58,9 +61,7 @@ include_paths := src    \
 	$(include_opencv)   \
 	src/tensorRT        \
 	src/tensorRT/common \
-	src/application     \
-	src/application/track     \
-	$(include_cuvid)       
+	src/application
 
 # 定义库文件路径，只需要写路径，不需要写-L
 library_paths := $(lib_all)
@@ -79,8 +80,8 @@ link_librarys := $(foreach item,$(link_librarys),-l$(item))
 # 如果是其他显卡，请修改-gencode=arch=compute_75,code=sm_75为对应显卡的能力
 # 显卡对应的号码参考这里：https://developer.nvidia.com/zh-cn/cuda-gpus#compute
 # 如果是 jetson nano，提示找不到-m64指令，请删掉 -m64选项。不影响结果
-cpp_compile_flags := -std=$(stdcpp) -w -g -O0 -m64 -fPIC -fopenmp -pthread $(DEFS)
-cu_compile_flags  := -std=$(stdcpp) -w -g -O0 -m64 $(cuda_arch) -Xcompiler "$(cpp_compile_flags)"
+cpp_compile_flags := -std=$(stdcpp) -w -g -O0 -fPIC -fopenmp -pthread $(DEFS)
+cu_compile_flags  := -std=$(stdcpp) -w -g -O0 $(cuda_arch) -Xcompiler "$(cpp_compile_flags)"
 link_flags        := -pthread -fopenmp -Wl,-rpath='$$ORIGIN'
 
 cpp_compile_flags += $(include_paths)
@@ -95,11 +96,6 @@ endif
 $(name)   : $(workdir)/$(name)
 $(example): $(workdir)/$(example)
 $(example): $(name)
-jetson:
-	@mkdir jetson_nonsupport
-	@mv examples/app_cuvid* jetson_nonsupport
-	@mv src/application/app_decode_inference_pipeline jetson_nonsupport
-	@mv src/ffhdd jetson_nonsupport
 
 all       : $(name)
 	@echo $(library_path_export) && echo $(link_librarys)
@@ -139,7 +135,7 @@ $(workdir)/$(name) : $(cpp_objs) $(cu_objs)
 $(workdir)/$(example) : $(cpp_objs_example)
 	@echo Link $@
 	@mkdir -p $(dir $@)
-	@$(cc) $^ -o $@ $(link_flags) -L$(workdir) -l$(short_name) -lopencv_freetype
+	@$(cc) $^ -o $@ $(link_flags) -L$(workdir) -l$(short_name)
 
 $(objdir)/%.cpp.o : $(srcdir)/%.cpp
 	@echo Compile CXX $<

@@ -1,14 +1,14 @@
-#include <builder/trt_builder.hpp>
-#include <infer/trt_infer.hpp>
+// #include <builder/trt_builder.hpp>
+// #include <infer/trt_infer.hpp>
 #include <common/ilogger.hpp>
-#include <app_clpr/yolo_plate.hpp>
-#include <app_clpr/plate_rec.hpp>
+// #include <app_clpr/yolo_plate.hpp>
+// #include <app_clpr/plate_rec.hpp>
 
-#include <opencv2/freetype.hpp>
+// #include <opencv2/freetype.hpp>
 
 #include <app_clpr/plate_e2e.hpp>
 using namespace std;
-
+/*
 static shared_ptr<Clpr::DetInfer> get_yolo_plate(TRT::Mode mode, const string& model, int device_id) {
     auto mode_name = TRT::mode_string(mode);
     TRT::set_device(device_id);
@@ -145,7 +145,7 @@ static void yolo_plate_test() {
     cv::imwrite(save_image, image);
     INFO("save image to %s.", save_image);
 }
-
+*/
 static void plate_e2e_test() {
     auto e2e = Clpr::create_e2e("plate_detect-blazeface_fpn-384", "plate_rec_color");
 
