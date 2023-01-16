@@ -104,14 +104,14 @@ all       : $(name)
 run       : $(example)
 	@cd $(workdir) && ./$(example) yolo
 
-yolo       : $(example)
-	@cd $(workdir) && ./$(example) yolo
+cuvid_yolo       : $(example)
+	@cd $(workdir) && ./$(example) cuvid_yolo
 
 plate      : $(example)
 	@cd $(workdir) && ./$(example) plate
 
-yolopose   : $(example)
-	@cd $(workdir) && ./$(example) yolopose
+cuvid_yolopose   : $(example)
+	@cd $(workdir) && ./$(example) cuvid_yolopose
 
 demuxer   : $(example)
 	@cd $(workdir) && ./$(example) demuxer
@@ -119,11 +119,17 @@ demuxer   : $(example)
 hard_decode : $(example)
 	@cd $(workdir) && ./$(example) hard_decode
 
-multi : $(example)
+multi_decode : $(example)
 	@cd $(workdir) && ./$(example) multi
 
 pipeline : $(example)
 	@cd $(workdir) && ./$(example) pipeline
+
+yolo : $(example)
+	@cd $(workdir) && ./$(example) yolo
+
+multi_gpu : $(example)
+	@cd $(workdir) && ./$(example) multi_gpu
 
 $(workdir)/$(name) : $(cpp_objs) $(cu_objs)
 	@echo Link $@

@@ -13,3 +13,4 @@ workspace/*.jpg
 !plate_detect.onnx
 !plate*.onnx
 compile_commands.json
+workspace/*result/

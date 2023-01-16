@@ -2,10 +2,8 @@
 #include <builder/trt_builder.hpp>
 #include <infer/trt_infer.hpp>
 #include <common/ilogger.hpp>
-#include "app_yolo_gpuptr/yolo_gpuptr.hpp"
-#include <ffhdd/ffmpeg-demuxer.hpp>
-#include <ffhdd/cuvid-decoder.hpp>
-#include <ffhdd/nalu.hpp>
+#include "app_yolo/yolo.hpp"
+#include "app_yolo/multi_gpu.hpp"
 
 using namespace std;
 
@@ -23,67 +21,77 @@ static const char* cocolabels[] = {
     "toaster",        "sink",       "refrigerator",  "book",          "clock",        "vase",          "scissors",
     "teddy bear",     "hair drier", "toothbrush"};
 
-bool requires(const char* name);
+bool
+    requires(const char* name);
 
-static shared_ptr<YoloGPUPtr::Infer> get_yolo(YoloGPUPtr::Type type, TRT::Mode mode, const string& model,
-                                              int device_id) {
-    auto mode_name = TRT::mode_string(mode);
-    TRT::set_device(device_id);
-
-    auto int8process = [=](int current, int count, const vector<string>& files, shared_ptr<TRT::Tensor>& tensor) {
-        INFO("Int8 %d / %d", current, count);
-
-        for (int i = 0; i < files.size(); ++i) {
-            auto image = cv::imread(files[i]);
-            YoloGPUPtr::image_to_tensor(image, tensor, type, i);
-        }
-    };
-
-    const char* name = model.c_str();
-    INFO("===================== test %s %s %s ==================================", YoloGPUPtr::type_name(type),
-         mode_name, name);
-
-    if (!requires(name))
-        return nullptr;
-
-    string onnx_file    = iLogger::format("%s.onnx", name);
-    string model_file   = iLogger::format("%s.%s.trtmodel", name, mode_name);
-    int test_batch_size = 16;
-
-    if (!iLogger::exists(model_file)) {
-        TRT::compile(mode,             // FP32、FP16、INT8
-                     test_batch_size,  // max batch size
-                     onnx_file,        // source
-                     model_file,       // save to
-                     {}, int8process, "inference");
-    }
-
-    return YoloGPUPtr::create_infer(model_file,  // engine file
-                                    type,        // yolo type, YoloGPUPtr::Type::V5 / YoloGPUPtr::Type::X
-                                    device_id,   // gpu id
-                                    0.25f,       // confidence threshold
-                                    0.45f,       // nms threshold
-                                    YoloGPUPtr::NMSMethod::FastGPU,  // NMS method, fast GPU / CPU
-                                    1024                             // max objects
-    );
-}
-
-void yolo_render_to_images(vector<shared_future<YoloGPUPtr::BoxArray>>& objs_array, const string& name) {
-    iLogger::rmtree(name);
-    iLogger::mkdir(name);
-
-    cv::VideoCapture capture("exp/fall_video.mp4");
-    cv::Mat image;
-
-    if (!capture.isOpened()) {
-        INFOE("Open video failed.");
+static void append_to_file(const string& file, const string& data) {
+    FILE* f = fopen(file.c_str(), "a+");
+    if (f == nullptr) {
+        INFOE("Open %s failed.", file.c_str());
         return;
     }
 
-    int iframe = 0;
-    while (capture.read(image) && iframe < objs_array.size()) {
-        auto objs = objs_array[iframe].get();
-        for (auto& obj : objs) {
+    fprintf(f, "%s\n", data.c_str());
+    fclose(f);
+}
+
+static void inference_and_performance(int deviceid, const string& engine_file, TRT::Mode mode, Yolo::Type type,
+                                      const string& model_name) {
+    auto engine = Yolo::create_infer(engine_file,               // engine file
+                                     type,                      // yolo type, Yolo::Type::V5 / Yolo::Type::X
+                                     deviceid,                  // gpu id
+                                     0.25f,                     // confidence threshold
+                                     0.45f,                     // nms threshold
+                                     Yolo::NMSMethod::FastGPU,  // NMS method, fast GPU / CPU
+                                     1024,                      // max objects
+                                     false                      // preprocess use multi stream
+    );
+    if (engine == nullptr) {
+        INFOE("Engine is nullptr");
+        return;
+    }
+
+    auto files = iLogger::find_files("inference", "*.jpg;*.jpeg;*.png;*.gif;*.tif");
+    vector<cv::Mat> images;
+    for (int i = 0; i < files.size(); ++i) {
+        auto image = cv::imread(files[i]);
+        images.emplace_back(image);
+    }
+
+    // warmup
+    vector<shared_future<Yolo::BoxArray>> boxes_array;
+    for (int i = 0; i < 10; ++i)
+        boxes_array = engine->commits(images);
+    boxes_array.back().get();
+    boxes_array.clear();
+
+    /////////////////////////////////////////////////////////
+    const int ntest  = 100;
+    auto begin_timer = iLogger::timestamp_now_float();
+
+    for (int i = 0; i < ntest; ++i)
+        boxes_array = engine->commits(images);
+
+    // wait all result
+    boxes_array.back().get();
+
+    float inference_average_time = (iLogger::timestamp_now_float() - begin_timer) / ntest / images.size();
+    auto type_name               = Yolo::type_name(type);
+    auto mode_name               = TRT::mode_string(mode);
+    INFO("%s[%s] average: %.2f ms / image, FPS: %.2f", engine_file.c_str(), type_name, inference_average_time,
+         1000 / inference_average_time);
+    append_to_file("perf.result.log",
+                   iLogger::format("%s,%s,%s,%f", model_name.c_str(), type_name, mode_name, inference_average_time));
+
+    string root = iLogger::format("%s_%s_%s_result", model_name.c_str(), type_name, mode_name);
+    iLogger::rmtree(root);
+    iLogger::mkdir(root);
+
+    for (int i = 0; i < boxes_array.size(); ++i) {
+        auto& image = images[i];
+        auto boxes  = boxes_array[i].get();
+
+        for (auto& obj : boxes) {
             uint8_t b, g, r;
             tie(b, g, r) = iLogger::random_color(obj.class_label);
             cv::rectangle(image, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(b, g, r),
@@ -97,104 +105,111 @@ void yolo_render_to_images(vector<shared_future<YoloGPUPtr::BoxArray>>& objs_arr
             cv::putText(image, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
         }
 
-        cv::imwrite(iLogger::format("%s/%03d.jpg", name.c_str(), iframe), image);
-        iframe++;
+        string file_name = iLogger::file_name(files[i], false);
+        string save_path = iLogger::format("%s/%s.jpg", root.c_str(), file_name.c_str());
+        INFO("Save to %s, %d object, average time %.2f ms", save_path.c_str(), boxes.size(), inference_average_time);
+        cv::imwrite(save_path, image);
     }
+    engine.reset();
 }
 
-static void yolo_test_hard_decode() {
-    auto name          = "hard";
-    int yolo_device_id = 0;
-    auto yolo          = get_yolo(YoloGPUPtr::Type::V5, TRT::Mode::FP32, "yolov5s", yolo_device_id);
-    if (yolo == nullptr) {
-        INFOE("Yolo create failed");
-        return;
-    }
+static void test(Yolo::Type type, TRT::Mode mode, const string& model) {
+    int deviceid   = 0;
+    auto mode_name = TRT::mode_string(mode);
+    TRT::set_device(deviceid);
 
-    auto demuxer = FFHDDemuxer::create_ffmpeg_demuxer("exp/fall_video.mp4");
-    if (demuxer == nullptr) {
-        INFOE("demuxer create failed");
-        return;
-    }
+    auto int8process = [=](int current, int count, const vector<string>& files, shared_ptr<TRT::Tensor>& tensor) {
+        INFO("Int8 %d / %d", current, count);
 
-    int decoder_device_id = 0;
-    auto decoder = FFHDDecoder::create_cuvid_decoder(true, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()),
-                                                     -1, decoder_device_id);
-
-    if (decoder == nullptr) {
-        INFOE("decoder create failed");
-        return;
-    }
-
-    uint8_t* packet_data = nullptr;
-    int packet_size      = 0;
-    uint64_t pts         = 0;
-
-    /* 这个是头，具有一些信息，但是没有图像数据 */
-    demuxer->get_extra_data(&packet_data, &packet_size);
-    decoder->decode(packet_data, packet_size);
-
-    // warm up
-    for (int i = 0; i < 10; ++i)
-        yolo->commit(cv::Mat(640, 640, CV_8UC3)).get();
-
-    vector<shared_future<YoloGPUPtr::BoxArray>> all_boxes;
-    auto tic = iLogger::timestamp_now_float();
-    do {
-        demuxer->demux(&packet_data, &packet_size, &pts);
-        int ndecoded_frame = decoder->decode(packet_data, packet_size, pts);
-        for (int i = 0; i < ndecoded_frame; ++i) {
-            unsigned int frame_index = 0;
-
-            YoloGPUPtr::Image image(decoder->get_frame(&pts, &frame_index), decoder->get_width(), decoder->get_height(),
-                                    decoder_device_id, decoder->get_stream(), YoloGPUPtr::ImageType::GPUYUVNV12);
-            all_boxes.emplace_back(yolo->commit(image));
+        for (int i = 0; i < files.size(); ++i) {
+            auto image = cv::imread(files[i]);
+            Yolo::image_to_tensor(image, tensor, type, i);
         }
-    } while (packet_size > 0);
+    };
 
-    all_boxes.back().get();
-    auto toc = iLogger::timestamp_now_float();
-    INFO("%s decode and inference time: %.2f ms", name, toc - tic);
+    const char* name = model.c_str();
+    INFO("===================== test %s %s %s ==================================", Yolo::type_name(type), mode_name,
+         name);
 
-    yolo_render_to_images(all_boxes, name);
+    if (not requires(name))
+        return;
+
+    string onnx_file    = iLogger::format("%s.onnx", name);
+    string model_file   = iLogger::format("%s.%s.trtmodel", name, mode_name);
+    int test_batch_size = 16;
+
+    if (not iLogger::exists(model_file)) {
+        TRT::compile(mode,             // FP32、FP16、INT8
+                     test_batch_size,  // max batch size
+                     onnx_file,        // source
+                     model_file,       // save to
+                     {}, int8process, "inference");
+    }
+
+    inference_and_performance(deviceid, model_file, mode, type, name);
 }
 
-static void yolo_test_soft_decode() {
-    auto name          = "soft";
-    int yolo_device_id = 0;
-    auto yolo          = get_yolo(YoloGPUPtr::Type::V5, TRT::Mode::FP32, "yolov5s", yolo_device_id);
-    if (yolo == nullptr) {
-        INFOE("Yolo create failed");
-        return;
+void multi_gpu_test() {
+    vector<int> devices{0, 1, 2};
+    auto multi_gpu_infer = Yolo::create_multi_gpu_infer("yolov5s.FP32.trtmodel", Yolo::Type::V5, devices);
+
+    auto files = iLogger::find_files("inference", "*.jpg");
+#pragma omp parallel for num_threads(devices.size())
+    for (int i = 0; i < devices.size(); ++i) {
+        auto image = cv::imread(files[i]);
+        for (int j = 0; j < 1000; ++j) {
+            multi_gpu_infer->commit(image).get();
+        }
     }
-
-    cv::VideoCapture capture("exp/fall_video.mp4");
-    cv::Mat image;
-
-    if (!capture.isOpened()) {
-        INFOE("Open video failed.");
-        return;
-    }
-
-    // warm up
-    for (int i = 0; i < 10; ++i)
-        yolo->commit(cv::Mat(640, 640, CV_8UC3)).get();
-
-    vector<shared_future<YoloGPUPtr::BoxArray>> all_boxes;
-    auto tic = iLogger::timestamp_now_float();
-    while (capture.read(image)) {
-        all_boxes.emplace_back(yolo->commit(image));
-    }
-
-    all_boxes.back().get();
-    auto toc = iLogger::timestamp_now_float();
-    INFO("soft decode and inference time: %.2f ms", toc - tic);
-
-    yolo_render_to_images(all_boxes, name);
+    INFO("Done");
 }
 
 int app_yolo() {
-    yolo_test_soft_decode();
-    yolo_test_hard_decode();
+    // test(Yolo::Type::V7, TRT::Mode::FP32, "yolov7");
+    test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5s");
+    // test(Yolo::Type::V3, TRT::Mode::FP32, "yolov3");
+
+    // multi_gpu_test();
+    // iLogger::set_log_level(iLogger::LogLevel::Debug);
+    // test(Yolo::Type::X, TRT::Mode::FP32, "yolox_s");
+
+    // iLogger::set_log_level(iLogger::LogLevel::Info);
+    //  test(Yolo::Type::X, TRT::Mode::FP32, "yolox_x");
+    //  test(Yolo::Type::X, TRT::Mode::FP32, "yolox_l");
+    //  test(Yolo::Type::X, TRT::Mode::FP32, "yolox_m");
+    //  test(Yolo::Type::X, TRT::Mode::FP32, "yolox_s");
+    //  test(Yolo::Type::X, TRT::Mode::FP16, "yolox_x");
+    //  test(Yolo::Type::X, TRT::Mode::FP16, "yolox_l");
+    //  test(Yolo::Type::X, TRT::Mode::FP16, "yolox_m");
+    //  test(Yolo::Type::X, TRT::Mode::FP16, "yolox_s");
+    //  test(Yolo::Type::X, TRT::Mode::INT8, "yolox_x");
+    //  test(Yolo::Type::X, TRT::Mode::INT8, "yolox_l");
+    //  test(Yolo::Type::X, TRT::Mode::INT8, "yolox_m");
+    //  test(Yolo::Type::X, TRT::Mode::INT8, "yolox_s");
+
+    // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5x6");
+    // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5l6");
+    // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5m6");
+    // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5s6");
+    // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5x");
+    // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5l");
+    // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5m");
+
+    // test(Yolo::Type::V5, TRT::Mode::FP16, "yolov5x6");
+    // test(Yolo::Type::V5, TRT::Mode::FP16, "yolov5l6");
+    // test(Yolo::Type::V5, TRT::Mode::FP16, "yolov5m6");
+    // test(Yolo::Type::V5, TRT::Mode::FP16, "yolov5s6");
+    // test(Yolo::Type::V5, TRT::Mode::FP16, "yolov5x");
+    // test(Yolo::Type::V5, TRT::Mode::FP16, "yolov5l");
+    // test(Yolo::Type::V5, TRT::Mode::FP16, "yolov5m");
+    // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5s");
+    // test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5x6");
+    // test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5l6");
+    // test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5m6");
+    // test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5s6");
+    // test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5x");
+    // test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5l");
+    // test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5m");
+    // test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5s");
     return 0;
 }

@@ -1,4 +1,5 @@
 # docker 部署
+- 镜像来源：pull ngc，编译opencv
 - 容器启动命令 `docker run --name cangku_runtime -it --network host --gpus all -v /home/xmrbi/cangku_workspace:/cangku_workspace --workdir /cangku_workspace imagename "/opt/nvidia/nvidia_entrypoint.sh"`
 
 # 使用

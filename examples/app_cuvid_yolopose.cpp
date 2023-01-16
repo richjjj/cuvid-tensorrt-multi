@@ -23,7 +23,8 @@ static const char *cocolabels[] = {
     "toaster",        "sink",       "refrigerator",  "book",          "clock",        "vase",          "scissors",
     "teddy bear",     "hair drier", "toothbrush"};
 
-bool requires(const char *name);
+bool
+    requires(const char *name);
 
 static shared_ptr<YoloposeGPUPtr::Infer> get_yolo(YoloposeGPUPtr::Type type, TRT::Mode mode, const string &model,
                                                   int device_id) {
@@ -204,7 +205,7 @@ static void test_soft_decode() {
     render_to_images(all_boxes, name);
 }
 
-int app_yolopose() {
+int app_cuvid_yolopose() {
     // test_soft_decode();
     test_hard_decode();
     return 0;
