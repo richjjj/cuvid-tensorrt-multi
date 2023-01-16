@@ -74,7 +74,8 @@
         "locale": "cpp",
         "__hash_table": "cpp",
         "__tree": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "__mutex_base": "cpp"
     },
     "editor.formatOnSave": true,
     "C_Cpp.autocomplete": "Default",

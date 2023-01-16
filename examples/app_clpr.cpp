@@ -184,6 +184,19 @@ static void plate_e2e_test() {
     }
     cv::polylines(image, carports1, true, (0, 255, 255));
     cv::imwrite("predict2.jpg", image);
+
+    // 测试稳定性
+    for (;;) {
+        cv::Mat w_image  = cv::imread(test_image);
+        auto begin_timer = iLogger::timestamp_now_float();
+        std::vector<Clpr::plateInfo> w_results;
+        e2e->getFindCarResult(w_image, carports1, w_results);
+        auto end_timer = iLogger::timestamp_now_float();
+        INFO("getFindCarResult function cost %.2f ms.", (float)(end_timer - begin_timer));
+        for (const auto& r : w_results) {
+            INFO("plate info is\n%s", r.print_info().c_str());
+        }
+    }
 }
 int app_plate() {
     // yolo_plate_test();
