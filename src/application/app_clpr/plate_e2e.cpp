@@ -184,12 +184,12 @@ public:
                 results[i].plateNO               = r.number;
                 results[i].plateNO_confidence    = r.number_confidence;
                 auto t5                          = iLogger::timestamp_now_float();
-                INFO("cost---- det: %fms;copy: %fms;rec: %fms;copy: %fms", float(t2 - t1), float(t3 - t2),
-                     float(t4 - t3), float(t5 - t4));
+                INFOD("cost---- det: %fms;copy: %fms;rec: %fms;copy: %fms", float(t2 - t1), float(t3 - t2),
+                      float(t4 - t3), float(t5 - t4));
             }
         }
         auto tn = iLogger::timestamp_now_float();
-        INFO("function cost: %fms", float(tn - t0));
+        INFOD("function cost: %fms", float(tn - t0));
         return 0;
     }
 
@@ -199,8 +199,9 @@ private:
 };
 shared_ptr<e2eInfer> create_e2e(const string& det_name, const string& rec_name, float confidence_threshold,
                                 float nms_threshold, int gpuid) {
-    // 设置logg
-    iLogger::set_logger_save_directory("/tmp/clpr");
+    // 设置loger
+    iLogger::set_log_level(iLogger::LogLevel::Info);
+    iLogger::set_logger_save_directory("/tmp/trtpro");
     shared_ptr<e2eInferImpl> instance(new e2eInferImpl());
     if (!instance->startup(det_name, rec_name)) {
         instance.reset();
