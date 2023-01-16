@@ -14,7 +14,8 @@
 #include <builder/trt_builder.hpp>
 namespace Clpr {
 
-static shared_ptr<DetInfer> get_yolo_plate(TRT::Mode mode, const string& model, int device_id) {
+static shared_ptr<DetInfer> get_yolo_plate(TRT::Mode mode, const string& model, float confidence_threshold = 0.4f,
+                                           int device_id = 0) {
     auto mode_name = TRT::mode_string(mode);
     TRT::set_device(device_id);
     auto int8process = [=](int current, int count, const vector<string>& files, shared_ptr<TRT::Tensor>& tensor) {
@@ -40,11 +41,11 @@ static shared_ptr<DetInfer> get_yolo_plate(TRT::Mode mode, const string& model, 
                      {}, int8process, "inference");
     }
 
-    return create_det(model_file,  // engine file
-                      device_id,   // gpu id
-                      0.25f,       // confidence threshold
-                      0.45f,       // nms threshold
-                      1024         // max objects
+    return create_det(model_file,            // engine file
+                      device_id,             // gpu id
+                      confidence_threshold,  // confidence threshold
+                      0.45f,                 // nms threshold
+                      1024                   // max objects
     );
 }
 
@@ -77,8 +78,8 @@ public:
     virtual ~e2eInferImpl() {
         ;
     }
-    bool startup(const string& det_name, const string& rec_name, int gpuid = 0) {
-        yolo_plate_ = get_yolo_plate(TRT::Mode::FP16, det_name, gpuid);
+    bool startup(const string& det_name, const string& rec_name, float confidence_threshold = 0.4f, int gpuid = 0) {
+        yolo_plate_ = get_yolo_plate(TRT::Mode::FP16, det_name, confidence_threshold, gpuid);
         if (yolo_plate_ == nullptr)
             return false;
         rec_ = get_plate_rec(TRT::Mode::FP16, rec_name, gpuid);
@@ -203,7 +204,7 @@ shared_ptr<e2eInfer> create_e2e(const string& det_name, const string& rec_name, 
     iLogger::set_log_level(iLogger::LogLevel::Info);
     iLogger::set_logger_save_directory("/tmp/trtpro");
     shared_ptr<e2eInferImpl> instance(new e2eInferImpl());
-    if (!instance->startup(det_name, rec_name)) {
+    if (!instance->startup(det_name, rec_name, confidence_threshold)) {
         instance.reset();
     }
     return instance;
