@@ -1,1 +1,4 @@
 yolov5s,YoloV5,FP32,6.317838
+yolov6n,YoloV5,FP16,3.625780
+yolov6n,YoloV5,FP16,1.285288
+yolov6n,YoloV5,FP16,1.362765
