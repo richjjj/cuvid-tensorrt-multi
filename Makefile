@@ -10,7 +10,7 @@ stdcpp    := c++14
 cuda_home := /usr/local/cuda
 cpp_pkg   := $(shell pwd)/third_party
 syslib    := 
-cuda_arch := 
+cuda_arch := -gencode=arch=compute_75,code=sm_75
 
 # 定义cpp的路径查找和依赖项mk文件
 cpp_srcs := $(shell find $(srcdir) -name "*.cpp")
@@ -58,6 +58,7 @@ include_paths := src    \
 	src/tensorRT/common \
 	src/application     \
 	src/application/track     \
+	src/application/common     \
 	$(include_cuvid)       
 
 # 定义库文件路径，只需要写路径，不需要写-L
@@ -93,11 +94,6 @@ endif
 $(name)   : $(workdir)/$(name)
 $(example): $(workdir)/$(example)
 $(example): $(name)
-# jetson:
-# 	@mkdir jetson_nonsupport
-# 	@mv example/app_cuvid* jetson_nonsupport
-# 	@mv src/application/app_decode_inference_pipeline jetson_nonsupport
-# 	@mv src/ffhdd jetson_nonsupport
 
 all       : $(name)
 	@echo $(library_path_export) && echo $(link_librarys)
@@ -131,6 +127,8 @@ yolo : $(example)
 multi_gpu : $(example)
 	@cd $(workdir) && ./$(example) multi_gpu
 
+json : $(example)
+	@cd $(workdir) && ./$(example) json
 $(workdir)/$(name) : $(cpp_objs) $(cu_objs)
 	@echo Link $@
 	@mkdir -p $(dir $@)

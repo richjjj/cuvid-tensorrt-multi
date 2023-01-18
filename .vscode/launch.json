@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/workspace/example",
             "args": [
-                "plate"
+                "yolo"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/workspace",

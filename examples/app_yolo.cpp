@@ -59,9 +59,12 @@ static void inference_and_performance(int deviceid, const string& engine_file, T
     }
 
     // warmup
+    cv::Mat w_image(640, 480, CV_8UC3);
+    vector<cv::Mat> w_images(40, w_image);
+    INFO("w_images.size() = %d", w_images.size());
     vector<shared_future<Yolo::BoxArray>> boxes_array;
     for (int i = 0; i < 10; ++i)
-        boxes_array = engine->commits(images);
+        boxes_array = engine->commits(w_images);
     boxes_array.back().get();
     boxes_array.clear();
 

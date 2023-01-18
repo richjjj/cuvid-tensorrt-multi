@@ -262,6 +262,7 @@ void InferImpl::build_engine_input_and_outputs_mapper() {
     int nbBindings         = context->engine_->getNbBindings();
     // int max_batchsize      = context->engine_->getMaxBatchSize();
     int max_batchsize = context->engine_->getProfileDimensions(0, 0, nvinfer1::OptProfileSelector::kMAX).d[0];
+    INFO("max_batchsize = %d", max_batchsize);
     inputs_.clear();
     inputs_name_.clear();
     outputs_.clear();
