@@ -154,7 +154,7 @@ static void test(Yolo::Type type, TRT::Mode mode, const string& model) {
 
 void multi_gpu_test() {
     vector<int> devices{0, 1, 2};
-    auto multi_gpu_infer = Yolo::create_multi_gpu_infer("yolov5s.FP32.trtmodel", Yolo::Type::V5, devices);
+    auto multi_gpu_infer = Yolo::create_multi_gpu_infer("yolov8n.FP16.trtmodel", Yolo::Type::V5, devices);
 
     auto files = iLogger::find_files("inference", "*.jpg");
 #pragma omp parallel for num_threads(devices.size())
@@ -167,15 +167,42 @@ void multi_gpu_test() {
     INFO("Done");
 }
 
+void multi_instances_test() {
+    constexpr int nums = 10;  // nums 个实例
+    vector<std::shared_ptr<Yolo::Infer>> instans{};
+    for (int i = 0; i < nums; ++i) {
+        instans.emplace_back(Yolo::create_infer("yolov8n.FP16.trtmodel", Yolo::Type::V5, 0));
+    }
+    for (int i = 0; i < nums; ++i) {
+        // warming up
+        for (int j = 0; j < 20; ++j) {
+            instans[i]->commit(cv::Mat(640, 480, CV_8UC3)).get();
+        }
+    }
+    auto files = iLogger::find_files("inference", "*.jpg");
+
+    auto begin_timer = iLogger::timestamp_now_float();
+#pragma omp parallel for num_threads(nums)  // nums线程
+    for (int i = 0; i < nums; ++i) {
+        auto image = cv::imread(files[2]);
+        for (int j = 0; j < 1000; ++j) {
+            instans[i]->commit(image).get();
+        }
+    }
+    float inference_average_time = (iLogger::timestamp_now_float() - begin_timer) / 1000.0f;
+    INFO("multi_instances[%d] cost %fms.", nums, inference_average_time);
+    INFO("done.");
+}
 int app_yolo() {
+    multi_instances_test();
     // test(Yolo::Type::V7, TRT::Mode::FP32, "yolov7");
-    test(Yolo::Type::V5, TRT::Mode::FP16, "yolov6n");
+    // test(Yolo::Type::V5, TRT::Mode::FP16, "yolov8n");
     // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5s");
     // test(Yolo::Type::V3, TRT::Mode::FP32, "yolov3");
 
     // multi_gpu_test();
     // iLogger::set_log_level(iLogger::LogLevel::Debug);
-    // test(Yolo::Type::X, TRT::Mode::FP32, "yolox_s");
+    // test(Yolo::Type::X, TRT::Mode::FP16, "yolox_s");
 
     // iLogger::set_log_level(iLogger::LogLevel::Info);
     //  test(Yolo::Type::X, TRT::Mode::FP32, "yolox_x");
