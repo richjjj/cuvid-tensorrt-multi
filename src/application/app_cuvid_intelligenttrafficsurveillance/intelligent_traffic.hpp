@@ -22,5 +22,5 @@ public:
     virtual vector<string> get_uris() const                         = 0;
 };
 
-shared_ptr<IntelligentTraffic> create_intelligent_traffic();
+shared_ptr<IntelligentTraffic> create_intelligent_traffic(const string model_repository);
 };  // namespace Intelligent
