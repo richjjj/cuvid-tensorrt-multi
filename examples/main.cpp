@@ -14,6 +14,7 @@ int app_cuvid_yolopose();
 void multi_gpu_test();
 int app_yolo();
 int app_json();
+int app_bus();
 #endif
 int app_plate();
 #ifndef JETSON
@@ -43,6 +44,8 @@ int main(int argc, char **argv) {
         multi_gpu_test();
     } else if (strcmp(method, "json") == 0) {
         app_json();
+    } else if (strcmp(method, "bus") == 0) {
+        app_bus();
     } else {
         app_yolo();
     }

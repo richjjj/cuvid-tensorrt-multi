@@ -129,6 +129,10 @@ multi_gpu : $(example)
 
 json : $(example)
 	@cd $(workdir) && ./$(example) json
+
+bus : $(example)
+	@cd $(workdir) && ./$(example) bus
+	
 $(workdir)/$(name) : $(cpp_objs) $(cu_objs)
 	@echo Link $@
 	@mkdir -p $(dir $@)
