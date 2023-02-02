@@ -1,3 +1,12 @@
+/*************************************************************************************
+ * Description: multi hard decode with tensorrt
+ * Version: 1.0
+ * Company: xmrbi
+ * Author: zhongchong
+ * Date: 2023-02-02 09:01:58
+ * LastEditors: zhongchong
+ * LastEditTime: 2023-02-02 10:20:59
+ *************************************************************************************/
 
 #include <builder/trt_builder.hpp>
 #include <infer/trt_infer.hpp>

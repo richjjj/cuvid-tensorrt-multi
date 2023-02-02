@@ -1,3 +1,12 @@
+/*************************************************************************************
+ * Description: multi hard decode with tensorrt
+ * Version: 1.0
+ * Company: xmrbi
+ * Author: zhongchong
+ * Date: 2023-02-01 10:12:40
+ * LastEditors: zhongchong
+ * LastEditTime: 2023-02-02 10:27:51
+ *************************************************************************************/
 #include "intelligent_traffic.hpp"
 
 #include "builder/trt_builder.hpp"
@@ -17,6 +26,7 @@ static json parse_raw_data(const string &raw_data) {
 
 class IntelligentTrafficImpl : public IntelligentTraffic {
 public:
+    IntelligentTrafficImpl() {}
     virtual bool make_view(const string &raw_data, size_t timeout) override {
         promise<bool> pro;
         // parse data 得到接口文档的结果
@@ -42,6 +52,12 @@ public:
     virtual vector<string> get_uris() const override {
         return uris_;
     }
+    virtual bool startup(const string &model_repository) {
+        model_repository_ = model_repository;
+        // load model
+        // TODO
+        return true;
+    }
 
 private:
     // multi gpus
@@ -50,5 +66,14 @@ private:
     vector<string> uris_;
     map<string, atomic_bool> runnings_;
     ai_callback callback_;
+    string model_repository_;
 };
+shared_ptr<IntelligentTraffic> create_intelligent_traffic(const string &model_repository) {
+    shared_ptr<IntelligentTrafficImpl> instance(new IntelligentTrafficImpl());
+    if (!instance->startup(model_repository)) {
+        instance.reset();
+    }
+    return instance;
+}
+
 };  // namespace Intelligent
