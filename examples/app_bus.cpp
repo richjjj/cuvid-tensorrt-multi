@@ -97,11 +97,11 @@ static void inference_and_performance(int deviceid, const string& engine_file, T
 }
 
 static void test(Yolo::Type type, TRT::Mode mode, const string& model) {
-    int deviceid   = 0;
-    auto mode_name = TRT::mode_string(mode);
-    TRT::set_device(deviceid);
+    int deviceid = 0;
 
-    const char* name = model.c_str();
+    TRT::set_device(deviceid);
+    const char* mode_name = TRT::mode_string(mode);
+    const char* name      = model.c_str();
     INFO("===================== test %s %s %s ==================================", Yolo::type_name(type), mode_name,
          name);
 

@@ -5,17 +5,16 @@
 #include <memory>
 #include <functional>
 #include <future>
-// #include "common/aicallback.h"
+#include "common/aicallback.h"
 
 namespace Intelligent {
 using namespace std;
 
-typedef void (*MessageCallBackDataInfo)(int callbackType, void *img, char *data, int datalen, void *userdata);
 using ai_callback = MessageCallBackDataInfo;
 
 class IntelligentTraffic {
 public:
-    // where, uri means json_data.dump()
+    // Here, uri means json_data.dump()
     // Not thread safe
     virtual bool make_view(const string &uri, size_t timeout = 100) = 0;
     virtual void set_callback(ai_callback callback)                 = 0;
