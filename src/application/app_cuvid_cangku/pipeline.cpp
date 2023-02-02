@@ -19,16 +19,6 @@ T round_up(T value, int decimal_places) {
     const T multiplier = std::pow(10.0, decimal_places);
     return std::ceil(value * multiplier) / multiplier;
 }
-
-// template <class Container, class Function>
-// static auto apply(const Container &cont, Function fun) {
-//     std::vector<typename std::result_of<Function(const typename Container::value_type &)>::type> ret;
-//     ret.reserve(cont.size());
-//     for (const auto &v : cont) {
-//         ret.push_back(fun(v));
-//     }
-//     return ret;
-// }
 vector<Object> det2tracks(const YoloposeGPUPtr::BoxArray &array) {
     vector<Object> outputs;
     for (int i = 0; i < array.size(); ++i) {

@@ -132,7 +132,10 @@ json : $(example)
 
 bus : $(example)
 	@cd $(workdir) && ./$(example) bus
-	
+traffic : $(example)
+	@cd $(workdir) && ./$(example) traffic
+test: $(example)
+	@cd $(workdir) && ./$(example) test
 $(workdir)/$(name) : $(cpp_objs) $(cu_objs)
 	@echo Link $@
 	@mkdir -p $(dir $@)

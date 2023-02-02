@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/workspace/example",
             "args": [
-                "yolo"
+                "traffic"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/workspace",
