@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-01 10:12:40
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-03 11:52:18
+ * LastEditTime: 2023-02-03 16:56:59
  *************************************************************************************/
 #include "intelligent_traffic.hpp"
 #include "track/bytetrack/BYTETracker.h"
@@ -61,7 +61,7 @@ public:
             state.set_value(false);
             return;
         }
-        auto gpu_id = get_gpu_index();
+        auto gpu_id = devices_[get_gpu_index()];
         INFO("current gpu_id is %d", gpu_id);
         auto decoder = FFHDDecoder::create_cuvid_decoder(
             true, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()), -1, gpu_id);
@@ -151,20 +151,19 @@ public:
         devices_          = gpuids;
         // load model
         // infers_.resize(gpuids.size());
-#pragma omp parallel for num_threads(infers_.size())
-        for (int j = 0; j < gpuids.size(); ++j) {
-            auto &gpuid = gpuids[j];
-            infers_[j] =
+#pragma omp parallel for num_threads(gpuids.size())
+        for (auto &gpuid : gpuids) {
+            infers_[gpuid] =
                 YoloGPUPtr::create_infer(model_repository + "/yolov8n.FP16.trtmodel", YoloGPUPtr::Type::V5, gpuid);
             for (int i = 0; i < 20; ++i) {
                 // warm up
-                infers_[j]->commit(cv::Mat(640, 640, CV_8UC3)).get();
+                infers_[gpuid]->commit(cv::Mat(640, 640, CV_8UC3)).get();
             }
-            INFO("infers_[%d] warm done.", j);
+            INFO("infers_[%d] warm done.", gpuid);
         }
-        for (int i = 0; i < gpuids.size(); ++i) {
-            if (infers_[i] == nullptr) {
-                INFOE("Infer create failed, gpuid = %d", gpuids[i]);
+        for (auto &gpuid : gpuids) {
+            if (infers_[gpuid] == nullptr) {
+                INFOE("Infer create failed, gpuid = %d", gpuid);
                 return false;
             }
         }
