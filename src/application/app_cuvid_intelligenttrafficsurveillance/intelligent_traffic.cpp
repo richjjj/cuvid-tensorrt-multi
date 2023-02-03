@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-01 10:12:40
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-02 16:22:14
+ * LastEditTime: 2023-02-02 17:03:39
  *************************************************************************************/
 #include "intelligent_traffic.hpp"
 #include "track/bytetrack/BYTETracker.h"
@@ -61,7 +61,8 @@ public:
             state.set_value(false);
             return;
         }
-        auto gpu_id  = get_gpu_index();
+        auto gpu_id = get_gpu_index();
+        INFO("current gpu_id is %d", gpu_id);
         auto decoder = FFHDDecoder::create_cuvid_decoder(
             true, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()), -1, gpu_id);
         if (decoder == nullptr) {
