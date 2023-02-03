@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-01 10:12:40
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-02 17:03:39
+ * LastEditTime: 2023-02-03 11:52:18
  *************************************************************************************/
 #include "intelligent_traffic.hpp"
 #include "track/bytetrack/BYTETracker.h"
@@ -105,28 +105,32 @@ public:
             }
             for (int i = 0; i < ndecoded_frame; ++i) {
                 unsigned int frame_index = 0;
-                if (callback_) {
+                if (true) {
                     YoloGPUPtr::Image image(decoder->get_frame(&pts, &frame_index), decoder->get_width(),
                                             decoder->get_height(), gpu_id, decoder->get_stream(),
                                             YoloGPUPtr::ImageType::GPUBGR);
                     nlohmann::json tmp_json;
-                    tmp_json["cameraId"]     = uri;
-                    tmp_json["freshTime"]    = frame_index;  // 时间戳，表示当前的帧数
-                    tmp_json["det_results"]  = nlohmann::json::array();
-                    tmp_json["pose_results"] = nlohmann::json::array();
-                    tmp_json["gcn_results"]  = nlohmann::json::array();
-                    auto objs_future         = infers_[gpu_id]->commit(image);
-                    cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
-                    cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
-                                    decoder->get_stream());
-                    cudaStreamSynchronize(decoder->get_stream());
-                    auto objs = objs_future.get();
+                    tmp_json["cameraId"]    = uri;
+                    tmp_json["freshTime"]   = frame_index;  // 时间戳，表示当前的帧数
+                    tmp_json["det_results"] = nlohmann::json::array();
+                    auto t1                 = iLogger::timestamp_now_float();
+                    auto objs_future        = infers_[gpu_id]->commit(image);
+
+                    // cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
+                    // cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
+                    //                 decoder->get_stream());
+                    // cudaStreamSynchronize(decoder->get_stream());
+
+                    auto objs      = objs_future.get();
+                    float d2h_time = iLogger::timestamp_now_float() - t1;
+                    INFO("image copy from device to host cost %.2f ms.", d2h_time);
                     for (const auto &obj : objs) {
                         nlohmann::json event_json = {{"box", {obj.left, obj.top, obj.right, obj.bottom}},
                                                      {"class_label", obj.class_label},
                                                      {"score", obj.confidence}};
                         tmp_json["det_results"].emplace_back(event_json);
                     }
+
                     // callback_(2, (void *)&cvimage, (char *)tmp_json.dump().c_str(), tmp_json.dump().size());
                 }
             }
@@ -152,6 +156,11 @@ public:
             auto &gpuid = gpuids[j];
             infers_[j] =
                 YoloGPUPtr::create_infer(model_repository + "/yolov8n.FP16.trtmodel", YoloGPUPtr::Type::V5, gpuid);
+            for (int i = 0; i < 20; ++i) {
+                // warm up
+                infers_[j]->commit(cv::Mat(640, 640, CV_8UC3)).get();
+            }
+            INFO("infers_[%d] warm done.", j);
         }
         for (int i = 0; i < gpuids.size(); ++i) {
             if (infers_[i] == nullptr) {
@@ -168,10 +177,14 @@ public:
                 t.join();
         }
     }
+
     virtual void stop() override {
         for (auto &r : uris_) {
             runnings_[r] = false;
         }
+    }
+    virtual void disconnect_view(const string &dis_uri) override {
+        runnings_[dis_uri] = false;
     }
     virtual ~IntelligentTrafficImpl() {
         join();
@@ -191,6 +204,7 @@ private:
     atomic<unsigned int> cursor_{0};
 };
 shared_ptr<IntelligentTraffic> create_intelligent_traffic(const string &model_repository, const vector<int> gpuids) {
+    iLogger::set_logger_save_directory("/tmp/intelligent_traffic");
     shared_ptr<IntelligentTrafficImpl> instance(new IntelligentTrafficImpl());
     if (!instance->startup(model_repository, gpuids)) {
         instance.reset();
