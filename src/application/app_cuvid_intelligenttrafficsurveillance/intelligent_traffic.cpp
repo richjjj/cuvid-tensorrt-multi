@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-01 10:12:40
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-07 08:40:12
+ * LastEditTime: 2023-02-07 11:47:35
  *************************************************************************************/
 #include "intelligent_traffic.hpp"
 #include "track/bytetrack/BYTETracker.h"
@@ -129,8 +129,8 @@ public:
                     tmp_json["cameraID"] = json_data["cameraID"];
                     tmp_json["uri"]      = uri;
                     json events_json     = json::array();
-                    auto t1              = iLogger::timestamp_now_float();
-                    auto objs_future     = infers_[gpu_id]->commit(image);
+
+                    auto objs_future = infers_[gpu_id]->commit(image);
 
                     cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
                     cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
@@ -144,6 +144,7 @@ public:
                     // 综上，构造一个Event类实现上述功能
                     auto objs   = objs_future.get();
                     auto tracks = tracker->update(det2tracks(objs));
+                    auto t1     = iLogger::timestamp_now_float();
                     for (auto &e : json_data["events"]) {
                         if (e["enable"]) {
                             if (e["EventName"] == "违停") {
@@ -166,14 +167,56 @@ public:
                                     json event_json = {{"eventName", "违停"}, {"objects", objects_json}};
                                     events_json.emplace_back(event_json);
                                 }
+                            } else if (e["EventName"] == "拥堵") {
+                                json objects_json = json::array();
+                                int car_count     = 0;
+                                for (size_t t = 0; t < tracks.size(); t++) {
+                                    auto &track = tracks[t];
+                                    // car
+                                    if (objs[t].class_label == 2) {
+                                        car_count++;
+                                    }
+                                }
+                                // 判断是否拥堵
+                                bool jam = (car_count >= 20);  // magic number
+                                // 判断在哪个roi
+                                if (jam) {
+                                    json object_json = {
+                                        {"roi", "roi_name"},
+                                    };
+                                    objects_json.emplace_back(object_json);
+                                }
+                                if (!objects_json.empty()) {
+                                    json event_json = {{"eventName", "拥堵"}, {"objects", objects_json}};
+                                    events_json.emplace_back(event_json);
+                                }
+                            } else if (e["EventName"] == "变道") {
+                                json objects_json = json::array();
+                                for (size_t t = 0; t < tracks.size(); t++) {
+                                    auto &track = tracks[t];
+                                    // car
+                                    if (objs[t].class_label == 2) {
+                                        bool stop = (abs(track.last_tlbr[2] - track.current_tlbr[2]) < 20);
+                                        // 判断在哪个roi
+                                        if (stop) {
+                                            json object_json = {{"objectID", track.track_id},
+                                                                {"coordinate", track.current_tlbr}};
+                                            objects_json.emplace_back(object_json);
+                                        }
+                                    }
+                                }
+                                if (!objects_json.empty()) {
+                                    json event_json = {{"eventName", "变道"}, {"objects", objects_json}};
+                                    events_json.emplace_back(event_json);
+                                }
                             }
                         }
                     }
                     tmp_json["events"] = events_json;
-                    // float d2h_time = iLogger::timestamp_now_float() - t1;
-                    // INFO("image copy from device to host cost %.2f ms.", d2h_time);
-                    auto data = tmp_json.dump();
+                    auto data          = tmp_json.dump();
                     callback_(2, (void *)&cvimage, (char *)data.c_str(), data.size());
+                    float d2h_time = iLogger::timestamp_now_float() - t1;
+                    INFO("image copy from device to host cost %.2f ms.", d2h_time);
                 }
             }
         }

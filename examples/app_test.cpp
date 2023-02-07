@@ -9,6 +9,7 @@
  *************************************************************************************/
 
 #include <iostream>
+using namespace std;
 
 int app_test() {
     return 0;
