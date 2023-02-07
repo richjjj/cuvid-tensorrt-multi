@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-01 10:12:40
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-03 16:56:59
+ * LastEditTime: 2023-02-07 08:40:12
  *************************************************************************************/
 #include "intelligent_traffic.hpp"
 #include "track/bytetrack/BYTETracker.h"
@@ -26,17 +26,32 @@ static json parse_raw_data(const string &raw_data) {
     return std::move(json::parse(raw_data));
 }
 
+vector<Object> det2tracks(const YoloGPUPtr::BoxArray &array) {
+    vector<Object> outputs;
+    for (int i = 0; i < array.size(); ++i) {
+        auto &abox = array[i];
+        Object obox;
+        obox.prob    = abox.confidence;
+        obox.label   = abox.class_label;
+        obox.rect[0] = abox.left;
+        obox.rect[1] = abox.top;
+        obox.rect[2] = abox.right - abox.left;
+        obox.rect[3] = abox.bottom - abox.top;
+        outputs.emplace_back(obox);
+    }
+    return outputs;
+}
 class IntelligentTrafficImpl : public IntelligentTraffic {
 public:
     IntelligentTrafficImpl() {}
     virtual bool make_view(const string &raw_data, size_t timeout) override {
         promise<bool> pro;
         // parse data 得到接口文档的结果
-        auto j_data    = json::parse(raw_data);
+        json j_data    = json::parse(raw_data);
         string uri     = j_data["uri"];
         runnings_[uri] = true;
         // 需要指定GPU device
-        ts_.emplace_back(thread(&IntelligentTrafficImpl::worker, this, uri, ref(pro)));
+        ts_.emplace_back(thread(&IntelligentTrafficImpl::worker, this, uri, j_data, ref(pro)));
         bool state = pro.get_future().get();
         if (state) {
             uris_.emplace_back(uri);
@@ -54,7 +69,7 @@ public:
             .set_max_time_lost(150);
         return tracker;
     }
-    virtual void worker(const string &uri, promise<bool> &state) {
+    virtual void worker(const string &uri, json json_data, promise<bool> &state) {
         auto demuxer = FFHDDemuxer::create_ffmpeg_demuxer(uri, true);
         if (demuxer == nullptr) {
             INFOE("demuxer create failed");
@@ -62,7 +77,8 @@ public:
             return;
         }
         auto gpu_id = devices_[get_gpu_index()];
-        INFO("current gpu_id is %d", gpu_id);
+        // debug
+        // INFO("current gpu_id is %d", gpu_id);
         auto decoder = FFHDDecoder::create_cuvid_decoder(
             true, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()), -1, gpu_id);
         if (decoder == nullptr) {
@@ -83,10 +99,10 @@ public:
         uint64_t pts         = 0;
         while (runnings_[uri]) {
             bool flag = demuxer->demux(&packet_data, &packet_size, &pts);
-            if (!flag) {
+            if (!flag && runnings_[uri]) {
                 while (!flag && runnings_[uri]) {
-                    INFOW("%s cannot be connected. try reconnect....", uri.c_str());
-                    this_thread::sleep_for(chrono::milliseconds(200));
+                    INFO("%s cannot be connected. try reconnect....", uri.c_str());
+                    iLogger::sleep(200);
                     demuxer.reset();
                     demuxer = FFHDDemuxer::create_ffmpeg_demuxer(uri, true);
                     flag    = (demuxer != nullptr) && demuxer->demux(&packet_data, &packet_size, &pts);
@@ -94,7 +110,7 @@ public:
                 if (!runnings_[uri]) {
                     INFO("disconnect %s", uri.c_str());
                 } else {
-                    INFOW("%s reopen successed.", uri.c_str());
+                    INFO("%s reopen successed.", uri.c_str());
                 }
             }
             // INFO("current uri is %s", uri.c_str());
@@ -105,33 +121,59 @@ public:
             }
             for (int i = 0; i < ndecoded_frame; ++i) {
                 unsigned int frame_index = 0;
-                if (true) {
+                if (callback_) {
                     YoloGPUPtr::Image image(decoder->get_frame(&pts, &frame_index), decoder->get_width(),
                                             decoder->get_height(), gpu_id, decoder->get_stream(),
                                             YoloGPUPtr::ImageType::GPUBGR);
                     nlohmann::json tmp_json;
-                    tmp_json["cameraId"]    = uri;
-                    tmp_json["freshTime"]   = frame_index;  // 时间戳，表示当前的帧数
-                    tmp_json["det_results"] = nlohmann::json::array();
-                    auto t1                 = iLogger::timestamp_now_float();
-                    auto objs_future        = infers_[gpu_id]->commit(image);
+                    tmp_json["cameraID"] = json_data["cameraID"];
+                    tmp_json["uri"]      = uri;
+                    json events_json     = json::array();
+                    auto t1              = iLogger::timestamp_now_float();
+                    auto objs_future     = infers_[gpu_id]->commit(image);
 
-                    // cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
-                    // cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
-                    //                 decoder->get_stream());
-                    // cudaStreamSynchronize(decoder->get_stream());
-
-                    auto objs      = objs_future.get();
-                    float d2h_time = iLogger::timestamp_now_float() - t1;
-                    INFO("image copy from device to host cost %.2f ms.", d2h_time);
-                    for (const auto &obj : objs) {
-                        nlohmann::json event_json = {{"box", {obj.left, obj.top, obj.right, obj.bottom}},
-                                                     {"class_label", obj.class_label},
-                                                     {"score", obj.confidence}};
-                        tmp_json["det_results"].emplace_back(event_json);
+                    cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
+                    cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
+                                    decoder->get_stream());
+                    cudaStreamSynchronize(decoder->get_stream());
+                    // 识别不同的事件
+                    // 1. 从raw——data获取所有的事件类型和roi
+                    // 2. 同时识别所有的事件
+                    // 3. 需要保存连续若干帧的检测结果，得到目标的轨迹
+                    // 4. 识别结果保存到tmp_json里
+                    // 综上，构造一个Event类实现上述功能
+                    auto objs   = objs_future.get();
+                    auto tracks = tracker->update(det2tracks(objs));
+                    for (auto &e : json_data["events"]) {
+                        if (e["enable"]) {
+                            if (e["EventName"] == "违停") {
+                                json objects_json = json::array();
+                                for (size_t t = 0; t < tracks.size(); t++) {
+                                    auto &track = tracks[t];
+                                    // car
+                                    if (objs[t].class_label == 2) {
+                                        // 判断是否停住
+                                        bool stop = (abs(track.last_tlbr[2] - track.current_tlbr[2]) < 20);
+                                        // 判断在哪个roi
+                                        if (stop) {
+                                            json object_json = {{"objectID", track.track_id},
+                                                                {"coordinate", track.current_tlbr}};
+                                            objects_json.emplace_back(object_json);
+                                        }
+                                    }
+                                }
+                                if (!objects_json.empty()) {
+                                    json event_json = {{"eventName", "违停"}, {"objects", objects_json}};
+                                    events_json.emplace_back(event_json);
+                                }
+                            }
+                        }
                     }
-
-                    // callback_(2, (void *)&cvimage, (char *)tmp_json.dump().c_str(), tmp_json.dump().size());
+                    tmp_json["events"] = events_json;
+                    // float d2h_time = iLogger::timestamp_now_float() - t1;
+                    // INFO("image copy from device to host cost %.2f ms.", d2h_time);
+                    auto data = tmp_json.dump();
+                    callback_(2, (void *)&cvimage, (char *)data.c_str(), data.size());
                 }
             }
         }
