@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-01 10:12:40
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-07 11:47:35
+ * LastEditTime: 2023-02-09 09:29:57
  *************************************************************************************/
 #include "intelligent_traffic.hpp"
 #include "track/bytetrack/BYTETracker.h"
@@ -122,6 +122,7 @@ public:
             for (int i = 0; i < ndecoded_frame; ++i) {
                 unsigned int frame_index = 0;
                 if (callback_) {
+                    auto t1 = iLogger::timestamp_now_float();
                     YoloGPUPtr::Image image(decoder->get_frame(&pts, &frame_index), decoder->get_width(),
                                             decoder->get_height(), gpu_id, decoder->get_stream(),
                                             YoloGPUPtr::ImageType::GPUBGR);
@@ -144,30 +145,33 @@ public:
                     // 综上，构造一个Event类实现上述功能
                     auto objs   = objs_future.get();
                     auto tracks = tracker->update(det2tracks(objs));
-                    auto t1     = iLogger::timestamp_now_float();
+
                     for (auto &e : json_data["events"]) {
                         if (e["enable"]) {
-                            if (e["EventName"] == "违停") {
+                            if (e["EventName"] == "weiting") {
                                 json objects_json = json::array();
                                 for (size_t t = 0; t < tracks.size(); t++) {
                                     auto &track = tracks[t];
                                     // car
                                     if (objs[t].class_label == 2) {
                                         // 判断是否停住
-                                        bool stop = (abs(track.last_tlbr[2] - track.current_tlbr[2]) < 20);
+                                        bool stop =
+                                            (abs(track.datas_.data_.front()[2] - track.datas_.data_.back()[2]) < 1);
                                         // 判断在哪个roi
                                         if (stop) {
                                             json object_json = {{"objectID", track.track_id},
-                                                                {"coordinate", track.current_tlbr}};
+                                                                {"label", 0},
+                                                                {"coordinate", track.datas_.data_.front()},
+                                                                {"roi_name", "roi_name"}};
                                             objects_json.emplace_back(object_json);
                                         }
                                     }
                                 }
                                 if (!objects_json.empty()) {
-                                    json event_json = {{"eventName", "违停"}, {"objects", objects_json}};
+                                    json event_json = {{"eventName", "weiting"}, {"objects", objects_json}};
                                     events_json.emplace_back(event_json);
                                 }
-                            } else if (e["EventName"] == "拥堵") {
+                            } else if (e["EventName"] == "yongdu") {
                                 json objects_json = json::array();
                                 int car_count     = 0;
                                 for (size_t t = 0; t < tracks.size(); t++) {
@@ -187,26 +191,51 @@ public:
                                     objects_json.emplace_back(object_json);
                                 }
                                 if (!objects_json.empty()) {
-                                    json event_json = {{"eventName", "拥堵"}, {"objects", objects_json}};
+                                    json event_json = {
+                                        {"eventName", "yongdu"}, {"label", 0}, {"objects", objects_json}};
                                     events_json.emplace_back(event_json);
                                 }
-                            } else if (e["EventName"] == "变道") {
+                            } else if (e["EventName"] == "biandao") {
                                 json objects_json = json::array();
                                 for (size_t t = 0; t < tracks.size(); t++) {
                                     auto &track = tracks[t];
                                     // car
                                     if (objs[t].class_label == 2) {
-                                        bool stop = (abs(track.last_tlbr[2] - track.current_tlbr[2]) < 20);
+                                        bool stop =
+                                            (abs(track.datas_.data_.front()[2] - track.datas_.data_.back()[2]) < 20);
                                         // 判断在哪个roi
                                         if (stop) {
                                             json object_json = {{"objectID", track.track_id},
-                                                                {"coordinate", track.current_tlbr}};
+                                                                {"label", 0},
+                                                                {"coordinate", track.datas_.data_.front()}};
                                             objects_json.emplace_back(object_json);
                                         }
                                     }
                                 }
                                 if (!objects_json.empty()) {
-                                    json event_json = {{"eventName", "变道"}, {"objects", objects_json}};
+                                    json event_json = {{"eventName", "biandao"}, {"objects", objects_json}};
+                                    events_json.emplace_back(event_json);
+                                }
+                            } else if (e["EventName"] == "xingrenchuangru") {
+                                json objects_json = json::array();
+                                for (size_t t = 0; t < tracks.size(); t++) {
+                                    auto &track = tracks[t];
+                                    // person
+                                    if (objs[t].class_label == 0) {
+                                        // 判断是否停住
+                                        bool stop =
+                                            (abs(track.datas_.data_.front()[2] - track.datas_.data_.back()[2]) < 20);
+                                        // 判断在哪个roi
+                                        if (stop) {
+                                            json object_json = {{"objectID", track.track_id},
+                                                                {"label", 1},
+                                                                {"coordinate", track.datas_.data_.front()}};
+                                            objects_json.emplace_back(object_json);
+                                        }
+                                    }
+                                }
+                                if (!objects_json.empty()) {
+                                    json event_json = {{"eventName", "xingrenchuangru"}, {"objects", objects_json}};
                                     events_json.emplace_back(event_json);
                                 }
                             }

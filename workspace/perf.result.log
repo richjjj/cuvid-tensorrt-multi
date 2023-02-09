@@ -9,3 +9,7 @@ yolox_s,YoloX,FP16,2.728418
 yolox_s,YoloX,FP16,2.737315
 yolov8n,YoloV5,FP16,1.831533
 yolov8n,YoloV5,FP16,1.827017
+yolov8n,YoloV5,FP16,2.640414
+yolov8n,YoloV5,FP16,2.218934
+yolov8n,YoloV5,FP16,2.308600
+yolov8n,YoloV5,FP16,2.685600
