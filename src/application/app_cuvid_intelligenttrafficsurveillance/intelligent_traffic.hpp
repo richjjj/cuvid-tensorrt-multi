@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-01 09:54:07
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-03 09:50:58
+ * LastEditTime: 2023-02-13 15:55:50
  *************************************************************************************/
 #pragma once
 
@@ -36,5 +36,5 @@ public:
 };
 
 shared_ptr<IntelligentTraffic> create_intelligent_traffic(const string& model_repository,
-                                                          const vector<int> gpuids = {0, 1, 2, 3});
+                                                          const vector<int> gpuids = {0, 1, 2, 3}, int instances_per_device = 2);
 };  // namespace Intelligent

@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-01 10:12:40
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-13 11:07:22
+ * LastEditTime: 2023-02-13 16:05:02
  *************************************************************************************/
 #include "intelligent_traffic.hpp"
 #include "track/bytetrack/BYTETracker.h"
@@ -101,6 +101,8 @@ public:
 
         auto thread_id = ++thread_id_;
         auto gpu_id    = devices_[get_gpu_index()];
+
+        int instance_id = ((device_count_map_[gpu_id]++) + 1) % instances_per_device_;
         // debug
         // INFO("current gpu_id is %d", gpu_id);
         auto decoder = FFHDDecoder::create_cuvid_decoder(
@@ -154,7 +156,7 @@ public:
                     tmp_json["uri"]      = uri;
                     json events_json     = json::array();
                     auto t1              = iLogger::timestamp_now_float();
-                    auto objs_future     = infers_[gpu_id]->commit(image);
+                    auto objs_future     = infers_[gpu_id][instance_id]->commit(image);
 
                     cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
 
@@ -304,15 +306,18 @@ public:
                     }
                     tmp_json["isPicture"] = isPicture;
                     auto data             = tmp_json.dump();
+                    float d2h_time        = iLogger::timestamp_now_float() - t1;
                     callback_(2, (void *)&cvimage, (char *)data.c_str(), data.size());
-                    float d2h_time = iLogger::timestamp_now_float() - t1;
-                    INFO("[%d] infer:%.2fms; track:%.2fms; e2e: %.2fms.", thread_id, infer_time, track_time, d2h_time);
+                    float call_time = iLogger::timestamp_now_float() - t1;
+                    INFO("[%d]  [%d]--[%d] infer:%.2fms; track:%.2fms; e2e: %.2fms. call_back: %.2fms", thread_id,
+                         gpu_id, instance_id, infer_time, track_time, d2h_time, call_time);
                 }
             }
         }
         INFO("done %s", uri.c_str());
     }
     int get_gpu_index() {
+        // auto index = ((cursor_++) + 1) % infers_.size();
         return ((cursor_++) + 1) % infers_.size();
     }
     virtual void set_callback(ai_callback callback) override {
@@ -321,26 +326,35 @@ public:
     virtual vector<string> get_uris() const override {
         return uris_;
     }
-    virtual bool startup(const string &model_repository, const vector<int> gpuids) {
-        model_repository_ = model_repository;
-        devices_          = gpuids;
-        // load model
-        // infers_.resize(gpuids.size());
-#pragma omp parallel for num_threads(gpuids.size())
-        for (auto &gpuid : gpuids) {
-            infers_[gpuid] =
-                YoloGPUPtr::create_infer(model_repository + "/yolov8n.FP16.trtmodel", YoloGPUPtr::Type::V5, gpuid);
+    virtual bool startup(const string &model_repository, const vector<int> gpuids, int instances_per_device) {
+        model_repository_     = model_repository;
+        devices_              = gpuids;
+        instances_per_device_ = instances_per_device;
+
+        // #pragma omp parallel for num_threads(devices_.size())
+        for (auto &gpuid : devices_) {
+            // 每个GPU多个个instances，当下设置为2个
+            for (int i = 0; i < instances_per_device_; ++i) {
+                infers_[gpuid].emplace_back(std::move(YoloGPUPtr::create_infer(
+                    model_repository + "/yolov8n.FP16.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
+            }
+            INFO("instance.size()=%d", infers_[gpuid].size());
             for (int i = 0; i < 20; ++i) {
                 // warm up
-                infers_[gpuid]->commit(cv::Mat(640, 640, CV_8UC3)).get();
+                for (auto &infer : infers_[gpuid]) {
+                    infer->commit(cv::Mat(640, 640, CV_8UC3)).get();
+                }
             }
             INFO("infers_[%d] warm done.", gpuid);
         }
-        for (auto &gpuid : gpuids) {
-            if (infers_[gpuid] == nullptr) {
-                INFOE("Infer create failed, gpuid = %d", gpuid);
-                return false;
+        for (auto &gpuid : devices_) {
+            for (auto &infer : infers_[gpuid]) {
+                if (infer == nullptr) {
+                    INFO("Infer create failed, gpuid = %d", gpuid);
+                    return false;
+                }
             }
+            device_count_map_[gpuid] = 0;
         }
         return true;
     }
@@ -374,14 +388,18 @@ private:
     ai_callback callback_;
     string model_repository_;
     // vector<shared_ptr<YoloGPUPtr::Infer>> infers_;
-    map<unsigned int, shared_ptr<YoloGPUPtr::Infer>> infers_;
+    int instances_per_device_{1};
+    map<unsigned int, vector<shared_ptr<YoloGPUPtr::Infer>>> infers_;
+    // map<int, atomic<unsigned int>> device_count_map_;  //{gpuid:数目}
+    atomic<int> device_count_map_[4];
     atomic<unsigned int> thread_id_{0};
     atomic<unsigned int> cursor_{0};
 };
-shared_ptr<IntelligentTraffic> create_intelligent_traffic(const string &model_repository, const vector<int> gpuids) {
+shared_ptr<IntelligentTraffic> create_intelligent_traffic(const string &model_repository, const vector<int> gpuids,
+                                                          int instances_per_device) {
     iLogger::set_logger_save_directory("/tmp/intelligent_traffic");
     shared_ptr<IntelligentTrafficImpl> instance(new IntelligentTrafficImpl());
-    if (!instance->startup(model_repository, gpuids)) {
+    if (!instance->startup(model_repository, gpuids, instances_per_device)) {
         instance.reset();
     }
     return instance;

@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-02 15:36:07
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-13 10:14:05
+ * LastEditTime: 2023-02-13 14:58:44
  *************************************************************************************/
 #include "app_cuvid_intelligenttrafficsurveillance/intelligent_traffic.hpp"
 #include <string>
@@ -15,7 +15,11 @@ static void callback(int callbackType, void *img, char *data, int datalen) {
     ;
 }
 static void test_traffic() {
-    auto instance = Intelligent::create_intelligent_traffic(".", {0, 1, 2, 3});
+    auto instance = Intelligent::create_intelligent_traffic(".", {0, 1, 2, 3}, 2);
+    if (instance == nullptr) {
+        INFO("create instance failed.");
+        return;
+    }
     instance->set_callback(callback);
     std::string raw_data =
         R"({"cameraID":"1","uri":"rtsp://192.168.172.212/record/test1.mp4","events":[{"eventName":"nixing","enable":true,"rois":[{"roiName":"default nixing","pointsNum":4,"points":{"x1":0,"y1":0,"x2":1920,"y2":0,"x3":1920,"y3":1080,"x4":0,"y4":1080,"x5":0,"y5":0,"x6":0,"y6":0,"x7":0,"y7":0,"x8":0,"y8":0}}]},{"eventName":"xingrenchuangru","enable":true,"rois":[{"roiName":"default xingrenchuangru","pointsNum":4,"points":{"x1":0,"y1":0,"x2":1920,"y2":0,"x3":1920,"y3":1080,"x4":0,"y4":1080,"x5":0,"y5":0,"x6":0,"y6":0,"x7":0,"y7":0,"x8":0,"y8":0}}]},{"eventName":"feijidongche","enable":true,"rois":[{"roiName":"default feijidongche","pointsNum":4,"points":{"x1":0,"y1":0,"x2":1920,"y2":0,"x3":1920,"y3":1080,"x4":0,"y4":1080,"x5":0,"y5":0,"x6":0,"y6":0,"x7":0,"y7":0,"x8":0,"y8":0}}]},{"eventName":"biandao","enable":true,"rois":[{"roiName":"变道","pointsNum":2,"points":{"x1":477,"y1":368,"x2":701,"y2":870,"x3":0,"y3":0,"x4":0,"y4":0,"x5":0,"y5":0,"x6":0,"y6":0,"x7":0,"y7":0,"x8":0,"y8":0}}]},{"eventName":"weiting","enable":true,"rois":[{"roiName":"default weiting","pointsNum":4,"points":{"x1":0,"y1":0,"x2":1920,"y2":0,"x3":1920,"y3":1080,"x4":0,"y4":1080,"x5":0,"y5":0,"x6":0,"y6":0,"x7":0,"y7":0,"x8":0,"y8":0}}]},{"eventName":"yongdu","enable":true,"rois":[{"roiName":"default yongdu","pointsNum":4,"points":{"x1":0,"y1":0,"x2":1920,"y2":0,"x3":1920,"y3":1080,"x4":0,"y4":1080,"x5":0,"y5":0,"x6":0,"y6":0,"x7":0,"y7":0,"x8":0,"y8":0}}]}]})";
