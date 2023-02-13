@@ -5,13 +5,13 @@
  * Author: zhongchong
  * Date: 2023-01-13 13:06:23
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-08 17:21:55
+ * LastEditTime: 2023-02-10 09:43:38
  *************************************************************************************/
 #pragma once
 
 #include "kalmanFilter.h"
 #include <queue>
-
+#include <opencv2/opencv.hpp>
 using namespace std;
 
 template <class T>
@@ -52,10 +52,11 @@ public:
     void activate(byte_kalman::KalmanFilter &kalman_filter, int frame_id);
     void re_activate(STrack &new_track, int frame_id, bool new_id = false);
     void update(STrack &new_track, int frame_id);
-    void assign_last_current_tlbr(vector<float> new_tlbr) {
-        this->datas_.push(new_tlbr);
+    void assign_last_current_tlbr(const cv::Point2f &new_center) {
+        this->current_center_point_ = new_center;
+        this->center_points_.push(this->current_center_point_);
         // this->last_tlbr    = this->current_tlbr;
-        this->current_tlbr = new_tlbr;
+        // this->current_tlbr = new_tlbr;
     }
 
 public:
@@ -66,9 +67,10 @@ public:
     vector<float> _tlwh;  // tracker第一帧的坐标
     vector<float> tlwh;
     vector<float> tlbr;
-    CircleQueue<vector<float>> datas_{30};
+    cv::Point2f current_center_point_;
+    CircleQueue<cv::Point2f> center_points_{30};
     // vector<float> last_tlbr;
-    vector<float> current_tlbr;
+
     int frame_id;
     int tracklet_len;
     int start_frame;

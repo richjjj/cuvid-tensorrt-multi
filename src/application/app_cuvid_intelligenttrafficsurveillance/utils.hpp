@@ -5,100 +5,93 @@
  * Author: zhongchong
  * Date: 2023-02-09 09:05:46
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-09 09:29:28
+ * LastEditTime: 2023-02-13 10:12:56
  *************************************************************************************/
+#pragma once
+
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <opencv2/opencv.hpp>
+#include <queue>
+#include "common/json.hpp"
+namespace Intelligent {
+using namespace std;
+const double eps       = 1e-6;
+const double THRESHOLD = 5;  // 阈值
 
-const double THRESHOLD = 0.1;  // 阈值
+bool isStopped(const vector<cv::Point2f>& coordinates) {
+    int n = coordinates.size();
+    if (n < 10)
+        return false;
 
-struct Coordinate {
-    double x;
-    double y;
-};
-
-bool isStopped(const std::vector<Coordinate> &coordinates) {
-    double dx = 0;
-    double dy = 0;
-    for (std::size_t i = 1; i < coordinates.size(); ++i) {
+    float dx = 0;
+    float dy = 0;
+    for (std::size_t i = 1; i < n; ++i) {
         dx += fabs(coordinates[i].x - coordinates[i - 1].x);
         dy += fabs(coordinates[i].y - coordinates[i - 1].y);
     }
     return dx < THRESHOLD && dy < THRESHOLD;
-}
 
+    // int count = 0;
+    // for (int i = 0; i < n - 1; i++) {
+    //     if (velocities[i] < eps)
+    //         count++;
+    // }
+
+    // double ratio = (double)count / (double)(n - 1);
+    // if (ratio > 0.8)
+    //     return true;
+    // else
+    //     return false;
+}
+bool isStopped(const deque<cv::Point2f>& coordinates) {
+    vector<cv::Point2f> v(coordinates.begin(), coordinates.end());
+    return isStopped(v);
+}
+bool isPointInPolygon(const vector<cv::Point2f>& polygon, const cv::Point2f& point) {
+    return pointPolygonTest(polygon, point, false) >= 0;
+}
 struct Line {
-    double a;
-    double b;
-    // double c;
+    cv::Point2f p1;
+    cv::Point2f p2;
 };
 
-Line getLine(const Coordinate &p1, const Coordinate &p2) {
-    Line line;
-    line.a = p2.y - p1.y;
-    line.b = p1.x - p2.x;
-    // line.c = p2.x * p1.y - p1.x * p2.y;
-    return line;
-}
-
-bool isIntersect(const Line &line1, const Line &line2) {
-    return fabs(line1.a * line2.b - line2.a * line1.b) > 1e-6;
-}
-
-template <typename T>
-struct Point {
-    T x;
-    T y;
-};
-
-template <typename T>
-struct Segment {
-    Point<T> start;
-    Point<T> end;
-};
-
-template <typename T>
-T crossProduct(const Point<T> &A, const Point<T> &B) {
-    return A.x * B.y - A.y * B.x;
-}
-
-template <typename T>
-bool isIntersect(const Segment<T> &s1, const Segment<T> &s2) {
-    Point<T> A = {s1.end.x - s1.start.x, s1.end.y - s1.start.y};
-    Point<T> B = {s2.end.x - s2.start.x, s2.end.y - s2.start.y};
-    Point<T> C = {s2.start.x - s1.start.x, s2.start.y - s1.start.y};
-    Point<T> D = {s2.end.x - s1.start.x, s2.end.y - s1.start.y};
-
-    T c = crossProduct(C, A);
-    T d = crossProduct(D, A);
-
-    if (c * d > 0) {
+// 判断车辆轨迹线段与给定线段是否相交
+bool isIntersect(const Line& line1, const Line& line2) {
+    // 可以用上车辆轨迹
+    cv::Point2f p = line1.p1, q = line2.p1, r = line2.p2 - line2.p1, s = line1.p2 - line1.p1;
+    float r_cross_s = r.cross(s);
+    if (abs(r_cross_s) < 1e-8) {
         return false;
     }
 
-    Point<T> E = {s1.end.x - s2.start.x, s1.end.y - s2.start.y};
-    Point<T> F = {s1.start.x - s2.start.x, s1.start.y - s2.start.y};
-
-    T e = crossProduct(E, B);
-    T f = crossProduct(F, B);
-
-    if (e * f > 0) {
+    float t = (q - p).cross(s) / r_cross_s;
+    float u = (q - p).cross(r) / r_cross_s;
+    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+        return true;
+    }
+    return false;
+}
+bool isIntersect(const Line& line1, const deque<cv::Point2f>& coordinates) {
+    vector<cv::Point2f> v(coordinates.begin(), coordinates.end());
+    if (v.size() < 10)
         return false;
+    // 或者只判断最后两帧
+    std::vector<Line> lines;
+    for (int i = 0; i < coordinates.size() - 1; i++) {
+        Line line;
+        line.p1 = coordinates[i];
+        line.p2 = coordinates[i + 1];
+        lines.push_back(line);
     }
 
-    return true;
+    // 判断车辆轨迹线段是否与给定线段相交
+    for (int i = 0; i < lines.size() - 1; i++) {
+        if (isIntersect(lines[i], line1)) {
+            return true;
+        }
+    }
+    return false;
 }
-
-// int main() {
-//     Segment<double> s1 = {{0.0, 0.0}, {1.0, 1.0}};
-//     Segment<double> s2 = {{1.0, 0.0}, {0.0, 1.0}};
-
-//     if (isIntersect(s1, s2)) {
-//         std::cout << "The segments intersect." << std::endl;
-//     } else {
-//         std::cout << "The segments do not intersect." << std::endl;
-//     }
-
-//     return 0;
-// }
+};  // namespace Intelligent

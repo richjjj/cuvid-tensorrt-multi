@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-06 15:24:48
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-06 15:49:28
+ * LastEditTime: 2023-02-10 16:14:59
  *************************************************************************************/
 
 #include "event.hpp"
@@ -23,7 +23,7 @@ protected:
 private:
     string eventName_;
 };
-class BalancedImpl : public EventImpl, public Event {
+class BalancedImpl : public EventImpl, public EventInfer {
 public:
     virtual bool commit(const ObjectDetector::Box& box) override {
         ;
@@ -31,8 +31,8 @@ public:
 
 private:
 };
-std::shared_ptr<Event> create_event(const std::string& event_name) {
-    shared_ptr<Event> instance(new BalancedImpl());
+std::shared_ptr<EventInfer> create_event(const std::string& event_name) {
+    shared_ptr<EventInfer> instance(new BalancedImpl());
     auto impl = dynamic_pointer_cast<EventImpl>(instance);
     if (!impl->startup(event_name)) {
         instance.reset();

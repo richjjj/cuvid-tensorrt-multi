@@ -18,7 +18,8 @@ STrack::STrack(vector<float> tlwh_, float score, int det_index) {
     tracklet_len    = 0;
     this->score     = score;
     start_frame     = 0;
-    assign_last_current_tlbr(this->tlbr);
+
+    assign_last_current_tlbr({(this->tlbr[0] + this->tlbr[2]) / 2.f, (this->tlbr[1] + this->tlbr[3]) / 2.f});
 }
 
 STrack::~STrack() {}
@@ -75,7 +76,7 @@ void STrack::re_activate(STrack &new_track, int frame_id, bool new_id) {
     this->frame_id        = frame_id;
     this->score           = new_track.score;
     this->detection_index = new_track.detection_index;
-    assign_last_current_tlbr(new_track.current_tlbr);
+    assign_last_current_tlbr(new_track.current_center_point_);
     if (new_id)
         this->track_id = next_id();
 }
@@ -103,7 +104,7 @@ void STrack::update(STrack &new_track, int frame_id) {
 
     this->score           = new_track.score;
     this->detection_index = new_track.detection_index;
-    assign_last_current_tlbr(new_track.current_tlbr);
+    assign_last_current_tlbr(new_track.current_center_point_);
 }
 
 void STrack::static_tlwh() {
