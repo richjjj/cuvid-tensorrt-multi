@@ -138,8 +138,8 @@ static void test(Yolo::Type type, TRT::Mode mode, const string& model) {
         return;
 
     string onnx_file    = iLogger::format("%s.onnx", name);
-    string model_file   = iLogger::format("%s.%s.trtmodel", name, mode_name);
-    int test_batch_size = 16;
+    int test_batch_size = 32;
+    string model_file   = iLogger::format("%s.%s.B%d.trtmodel", name, mode_name, test_batch_size);
 
     if (not iLogger::exists(model_file)) {
         TRT::compile(mode,             // FP32、FP16、INT8
@@ -196,7 +196,7 @@ void multi_instances_test() {
 int app_yolo() {
     // multi_instances_test();
     // test(Yolo::Type::V7, TRT::Mode::FP32, "yolov7");
-    test(Yolo::Type::V5, TRT::Mode::FP16, "yolov8n");
+    test(Yolo::Type::V5, TRT::Mode::FP16, "yolov6n");
     // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5s");
     // test(Yolo::Type::V3, TRT::Mode::FP32, "yolov3");
 

@@ -196,7 +196,7 @@ public:
         TRT::Tensor output_array_device(TRT::DataType::Float);
         int max_batch_size = engine->get_max_batch_size();
         auto input         = engine->tensor("images");
-        auto output        = engine->tensor("output");
+        auto output        = engine->tensor("outputs");
         int num_classes    = output->size(2) - 5;
 
         input_width_      = input->size(3);

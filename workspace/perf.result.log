@@ -14,3 +14,6 @@ yolov8n,YoloV5,FP16,2.218934
 yolov8n,YoloV5,FP16,2.308600
 yolov8n,YoloV5,FP16,2.685600
 yolov8n,YoloV5,FP16,2.673051
+yolov8n,YoloV5,FP16,2.055804
+yolov6n,YoloV5,FP16,1.590627
+yolov6n,YoloV5,FP16,1.475411
