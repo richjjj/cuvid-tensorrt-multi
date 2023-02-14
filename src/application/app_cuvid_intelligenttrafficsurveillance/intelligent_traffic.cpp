@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-01 10:12:40
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-13 16:05:02
+ * LastEditTime: 2023-02-13 22:20:46
  *************************************************************************************/
 #include "intelligent_traffic.hpp"
 #include "track/bytetrack/BYTETracker.h"
@@ -158,8 +158,6 @@ public:
                     auto t1              = iLogger::timestamp_now_float();
                     auto objs_future     = infers_[gpu_id][instance_id]->commit(image);
 
-                    cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
-
                     // 识别不同的事件
                     // 1. 从raw——data获取所有的事件类型和roi
                     // 2. 同时识别所有的事件
@@ -298,19 +296,28 @@ public:
                     tmp_json["events"] = events_json;
 
                     bool isPicture = false;
-                    if (frame_index % 50 == 0 || !events_json.empty()) {
-                        cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
-                                        decoder->get_stream());
-                        cudaStreamSynchronize(decoder->get_stream());
+                    auto t3        = iLogger::timestamp_now_float();
+                    cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
+                    if (true || frame_index % 50 == 0 || !events_json.empty()) {
+                        cudaMemcpy(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost);
+                        // cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(),
+                        // cudaMemcpyDeviceToHost,
+                        //                 decoder->get_stream());
+                        // cudaStreamSynchronize(decoder->get_stream());
                         isPicture = true;
                     }
+                    float copy_time = iLogger::timestamp_now_float() - t3;
+                    INFO("COPY cost %.2fms", copy_time);
                     tmp_json["isPicture"] = isPicture;
                     auto data             = tmp_json.dump();
                     float d2h_time        = iLogger::timestamp_now_float() - t1;
-                    callback_(2, (void *)&cvimage, (char *)data.c_str(), data.size());
+                    if (isPicture)
+                        callback_(2, (void *)&cvimage, (char *)data.c_str(), data.size());
+                    else
+                        callback_(2, nullptr, (char *)data.c_str(), data.size());
                     float call_time = iLogger::timestamp_now_float() - t1;
-                    INFO("[%d]  [%d]--[%d] infer:%.2fms; track:%.2fms; e2e: %.2fms. call_back: %.2fms", thread_id,
-                         gpu_id, instance_id, infer_time, track_time, d2h_time, call_time);
+                    // INFO("[%d]  [%d]--[%d] infer:%.2fms; track:%.2fms; e2e: %.2fms. call_back: %.2fms", thread_id,
+                    //      gpu_id, instance_id, infer_time, track_time, d2h_time, call_time);
                 }
             }
         }
@@ -336,7 +343,7 @@ public:
             // 每个GPU多个个instances，当下设置为2个
             for (int i = 0; i < instances_per_device_; ++i) {
                 infers_[gpuid].emplace_back(std::move(YoloGPUPtr::create_infer(
-                    model_repository + "/yolov8n.FP16.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
+                    model_repository + "/yolov6n.FP16.B32.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
             }
             INFO("instance.size()=%d", infers_[gpuid].size());
             for (int i = 0; i < 20; ++i) {
