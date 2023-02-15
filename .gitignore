@@ -12,6 +12,9 @@ workspace/*.jpg
 !plate_rec_color.onnx
 !plate_detect.onnx
 !plate*.onnx
+!yolov6n.onnx
+!yolov8n.onnx
+!yolov6n_v2_reopt_qat_35.0_bnone.onnx
 compile_commands.json
 workspace/*result/
 test*.mp4
