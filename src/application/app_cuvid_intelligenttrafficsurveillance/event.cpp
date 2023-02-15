@@ -81,6 +81,14 @@ unique_ptr<BYTETracker> creatTracker() {
 // TODO 判断属于哪一个roi
 class EventInferImpl : public EventInfer {
 public:
+    virtual ~EventInferImpl() {
+        running_ = false;
+        cv_.notify_one();
+        if (worker_thread_.joinable()) {
+            worker_thread_.join();
+        }
+        INFO("EventInfer destroy.");
+    }
     virtual string get_uri() const override {
         return config_.uri;
     }
@@ -250,6 +258,32 @@ public:
                                 json event_json = {{"eventName", "xingrenchuangru"}, {"objects", objects_json}};
                                 events_json.emplace_back(event_json);
                             }
+                        } else if (e.eventName == "test") {
+                            json objects_json = json::array();
+                            for (size_t t = 0; t < tracks.size(); t++) {
+                                auto &track = tracks[t];
+                                auto &obj   = objs[track.detection_index];
+                                // car
+                                if (obj.class_label == 2 && obj.confidence > 0.2) {
+                                    for (auto &roi : e.rois) {
+                                        // 判断是否停住
+                                        if (isPointInPolygon(roi.points, track.current_center_point_)) {
+                                            json object_json = {
+                                                {"objectID", track.track_id},
+                                                {"label", 1},
+                                                {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                {"confidence", obj.confidence},
+                                                {"roi_name", roi.roiName}};
+                                            objects_json.emplace_back(object_json);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            if (!objects_json.empty()) {
+                                json event_json = {{"eventName", "test"}, {"objects", objects_json}};
+                                events_json.emplace_back(event_json);
+                            }
                         }
                     }
                 }
@@ -257,27 +291,29 @@ public:
 
                 bool isPicture = false;
                 cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
-                // cudaMemcpy(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost);
                 if (job.frame_index_ % 50 == 0 || !events_json.empty()) {
                     cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
                                     image.stream);
                     cudaStreamSynchronize(image.stream);
                     isPicture = true;
                 }
+                // debug
+                // if (isPicture)
+                //     cv::imwrite(cv::format("imgs/%d.jpg", job.frame_index_), cvimage);
                 auto t4               = iLogger::timestamp_now_float();
                 tmp_json["isPicture"] = isPicture;
                 tmp_json["events"]    = events_json;
                 auto data             = tmp_json.dump();
-                // bool isEmpty          = events_json.empty();
+                bool isEmpty          = events_json.empty();
                 // if (!isEmpty)
-                //     callback_(2, (void *)&cvimage, (char *)data.c_str(), data.size());
+                //     INFO("data is %s.", data.c_str());
                 if (isPicture)
                     callback_(2, (void *)&cvimage, (char *)data.c_str(), data.size());
                 else
                     callback_(2, nullptr, (char *)data.c_str(), data.size());
                 auto t5 = iLogger::timestamp_now_float();
-                // INFO("image copy: %.2f ms; track: %.2f, event: %.2f; callback: %.2f", float(t4 - t3), float(t2 - t1),
-                //      float(t3 - t2), float(t5 - t4));
+                // INFO("total: %.2fms; image copy: %.2f ms; track: %.2f, event: %.2f; callback: %.2f", float(t5 - t1),
+                //      float(t4 - t3), float(t2 - t1), float(t3 - t2), float(t5 - t4));
                 // reset
                 job.frame_index_ = 0;
             }

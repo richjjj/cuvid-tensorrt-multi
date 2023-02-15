@@ -23,19 +23,23 @@ class IntelligentTrafficImpl : public IntelligentTraffic {
 public:
     IntelligentTrafficImpl() {}
     virtual bool make_view(const string &raw_data, size_t timeout) override {
+        if (callback_ == nullptr) {
+            INFOE("please set_callback befor make_view.");
+            return false;
+        }
         promise<bool> pro;
         // 创建eventinfer对象
         auto event_infer = create_event(raw_data);
         event_infer->set_callback(callback_);
         string uri     = event_infer->get_uri();
         runnings_[uri] = true;
-        // 需要指定GPU device
         ts_.emplace_back(thread(&IntelligentTrafficImpl::worker, this, uri, event_infer, ref(pro)));
         bool state = pro.get_future().get();
         if (state) {
             uris_.emplace_back(uri);
         } else {
-            INFOE("The uri connection is refused.");
+            // INFOE("The uri connection is refused.");
+            event_infer.reset();
             runnings_[uri] = false;
         }
         return state;
@@ -47,21 +51,22 @@ public:
             state.set_value(false);
             return;
         }
-
-        auto thread_id = ++thread_id_;
-        auto gpu_id    = devices_[get_gpu_index()];
-
+        // create decode
+        auto gpu_id     = devices_[get_gpu_index()];
         int instance_id = ((device_count_map_[gpu_id]++) + 1) % instances_per_device_;
-        // debug
-        // INFO("current gpu_id is %d", gpu_id);
-        auto decoder = FFHDDecoder::create_cuvid_decoder(
-            true, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()), -1, gpu_id);
+        auto decoder    = FFHDDecoder::create_cuvid_decoder(
+               true, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()), -1, gpu_id);
         if (decoder == nullptr) {
             INFOE("decoder create failed");
             state.set_value(false);
+            cursor_--;
+            device_count_map_[gpu_id]--;
             return;
         }
         state.set_value(true);
+        auto thread_id = ++thread_id_;
+
+        // decode部分
         uint8_t *packet_data = nullptr;
         int packet_size      = 0;
         uint64_t pts         = 0;
@@ -82,6 +87,7 @@ public:
                 }
             }
             // INFO("current uri is %s", uri.c_str());
+            auto t0            = iLogger::timestamp_now_float();
             int ndecoded_frame = decoder->decode(packet_data, packet_size, pts);
             if (ndecoded_frame == -1) {
                 INFO("%s stopped.", uri.c_str());
@@ -100,9 +106,8 @@ public:
                     auto t2   = iLogger::timestamp_now_float();
                     event_infer->commit({frame_index, image, objs});
                     auto t3 = iLogger::timestamp_now_float();
-                    // INFO("[%d]  [%d]--[%d] infer: %.2f; commit: %.2f", thread_id, gpu_id, instance_id, (float)(t2 -
-                    // t1),
-                    //      (float)(t3 - t2));
+                    // INFO("[%d]  [%d]--[%d] decode: %.2f; infer: %.2f; commit: %.2f", thread_id, gpu_id, instance_id,
+                    //      float(t1 - t0), (float)(t2 - t1), (float)(t3 - t2));
                 }
             }
         }
@@ -162,12 +167,13 @@ public:
         for (auto &r : uris_) {
             runnings_[r] = false;
         }
+        join();
     }
     virtual void disconnect_view(const string &dis_uri) override {
         runnings_[dis_uri] = false;
     }
     virtual ~IntelligentTrafficImpl() {
-        join();
+        stop();
         INFO("Traffic done.");
     }
 
@@ -188,7 +194,7 @@ private:
 };
 shared_ptr<IntelligentTraffic> create_intelligent_traffic(const string &model_repository, const vector<int> gpuids,
                                                           int instances_per_device) {
-    // iLogger::set_logger_save_directory("/tmp/intelligent_traffic");
+    iLogger::set_logger_save_directory("/tmp/intelligent_traffic");
     shared_ptr<IntelligentTrafficImpl> instance(new IntelligentTrafficImpl());
     if (!instance->startup(model_repository, gpuids, instances_per_device)) {
         instance.reset();
