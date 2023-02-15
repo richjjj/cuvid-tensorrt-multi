@@ -33,17 +33,15 @@ struct Input {
     Input() = default;
     unsigned int frame_index_{0};
     YoloGPUPtr::Image image;
-    // ObjectDetector::Box box;
     YoloGPUPtr::BoxArray boxarray_;
 };
 using ai_callback = MessageCallBackDataInfo;
 
 class EventInfer {
-    // return：是否触发事件
 public:
     virtual bool commit(const Input& input)         = 0;
     virtual void set_callback(ai_callback callback) = 0;
-    virtual std::string get_uri() const                  = 0;
+    virtual std::string get_uri() const             = 0;
 };
 
 std::shared_ptr<EventInfer> create_event(const std::string& raw_data);
