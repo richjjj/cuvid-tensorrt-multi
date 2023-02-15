@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-01-13 13:06:23
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-10 09:43:38
+ * LastEditTime: 2023-02-15 09:33:24
  *************************************************************************************/
 #pragma once
 
@@ -24,6 +24,9 @@ public:
         }
         data_.emplace_back(item);
     };
+    ~CircleQueue() {
+        data_.clear();
+    }
 
 public:
     deque<T> data_;

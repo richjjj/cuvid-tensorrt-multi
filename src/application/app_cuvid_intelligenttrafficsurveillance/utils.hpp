@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-09 09:05:46
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-13 10:12:56
+ * LastEditTime: 2023-02-14 10:14:29
  *************************************************************************************/
 #pragma once
 
@@ -14,7 +14,6 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 #include <queue>
-#include "common/json.hpp"
 namespace Intelligent {
 using namespace std;
 const double eps       = 1e-6;

@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-06 15:24:48
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-14 09:49:50
+ * LastEditTime: 2023-02-15 10:08:48
  *************************************************************************************/
 
 #include "event.hpp"
@@ -22,10 +22,7 @@
 #include "utils.hpp"
 #include "track/bytetrack/BYTETracker.h"
 
-#include "common/aicallback.h"
-
 namespace Intelligent {
-using ai_callback = MessageCallBackDataInfo;
 
 using namespace std;
 using json = nlohmann::json;
@@ -75,12 +72,27 @@ unique_ptr<BYTETracker> creatTracker() {
         .set_max_time_lost(150);
     return tracker;
 }
+// 识别不同的事件
+// 1. 从raw——data获取所有的事件类型和roi
+// 2. 同时识别所有的事件
+// 3. 需要保存连续若干帧的检测结果，得到目标的轨迹
+// 4. 识别结果保存到tmp_json里
+// 综上，构造一个Event类实现上述功能
+// TODO 判断属于哪一个roi
 class EventInferImpl : public EventInfer {
 public:
+    virtual string get_uri() const override {
+        return config_.uri;
+    }
+    virtual void set_callback(ai_callback callback) override {
+        callback_ = callback;
+    }
     virtual bool commit(const Input &input) override {
-        lock_guard<mutex> l(lock_);
+        unique_lock<mutex> l(lock_);
+        cv_.wait(l, [&]() { return jobs_.size() < 20; });
         jobs_.emplace(input);
         cv_.notify_one();
+        return true;
     }
     virtual bool startup(const string &raw_data) {
         // 设置callback
@@ -107,6 +119,7 @@ public:
                     jobs_.pop();
                 }
             }
+            auto size = jobs_.size();
             // 业务代码
             if (job.frame_index_ != 0) {
                 nlohmann::json tmp_json;
@@ -115,15 +128,11 @@ public:
                 json events_json     = json::array();
                 auto t1              = iLogger::timestamp_now_float();
                 auto &image          = job.image;
-                cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
-                cudaMemcpy(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost);
+
                 // auto objs        = job.future_boxarray_.get();
-                auto &objs       = job.boxarray_;
-                float infer_time = iLogger::timestamp_now_float() - t1;
-                // INFO("image inference cost %.2f ms.", infer_time);
-                auto tracks      = tracker_->update(det2tracks(objs));
-                float track_time = iLogger::timestamp_now_float() - t1;
-                // INFO("image inference and track cost %.2f ms.", track_time);
+                auto &objs  = job.boxarray_;
+                auto tracks = tracker_->update(det2tracks(objs));
+                auto t2     = iLogger::timestamp_now_float();
                 for (auto &e : config_.events) {
                     if (e.enable) {
                         if (e.eventName == "weiting") {
@@ -132,7 +141,7 @@ public:
                                 auto &track = tracks[t];
                                 auto &obj   = objs[track.detection_index];
                                 // car
-                                if (obj.class_label == 2 && obj.confidence > 0.5) {
+                                if (obj.class_label == 2 && obj.confidence > 0.4) {
                                     // 判断在哪个roi
                                     for (auto &roi : e.rois) {
                                         if (isPointInPolygon(roi.points, track.current_center_point_)) {
@@ -183,7 +192,7 @@ public:
                                 }
                             }
                             if (!objects_json.empty()) {
-                                json event_json = {{"eventName", "yongdu"}, {"label", 0}, {"objects", objects_json}};
+                                json event_json = {{"eventName", "yongdu"}, {"objects", objects_json}};
                                 events_json.emplace_back(event_json);
                             }
                         } else if (e.eventName == "biandao") {
@@ -221,13 +230,13 @@ public:
                                 auto &track = tracks[t];
                                 auto &obj   = objs[track.detection_index];
                                 // person
-                                if (obj.class_label == 0 && obj.confidence > 0.5) {
+                                if (obj.class_label == 0 && obj.confidence > 0.2) {
                                     for (auto &roi : e.rois) {
                                         // 判断是否停住
                                         if (isPointInPolygon(roi.points, track.current_center_point_)) {
                                             json object_json = {
                                                 {"objectID", track.track_id},
-                                                {"label", 0},
+                                                {"label", 1},
                                                 {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
                                                 {"confidence", obj.confidence},
                                                 {"roi_name", roi.roiName}};
@@ -244,10 +253,33 @@ public:
                         }
                     }
                 }
-                tmp_json["isPicture"] = true;
+                auto t3 = iLogger::timestamp_now_float();
+
+                bool isPicture = false;
+                cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
+                // cudaMemcpy(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost);
+                if (job.frame_index_ % 50 == 0 || !events_json.empty()) {
+                    cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
+                                    image.stream);
+                    cudaStreamSynchronize(image.stream);
+                    isPicture = true;
+                }
+                auto t4               = iLogger::timestamp_now_float();
+                tmp_json["isPicture"] = isPicture;
+                tmp_json["events"]    = events_json;
                 auto data             = tmp_json.dump();
-                float d2h_time        = iLogger::timestamp_now_float() - t1;
-                callback_(2, (void *)&cvimage, (char *)data.c_str(), data.size());
+                // bool isEmpty          = events_json.empty();
+                // if (!isEmpty)
+                //     callback_(2, (void *)&cvimage, (char *)data.c_str(), data.size());
+                if (isPicture)
+                    callback_(2, (void *)&cvimage, (char *)data.c_str(), data.size());
+                else
+                    callback_(2, nullptr, (char *)data.c_str(), data.size());
+                auto t5 = iLogger::timestamp_now_float();
+                INFO("image copy: %.2f ms; track: %.2f, event: %.2f; callback: %.2f", float(t4 - t3), float(t2 - t1),
+                     float(t3 - t2), float(t5 - t4));
+                // reset
+                job.frame_index_ = 0;
             }
         }
 

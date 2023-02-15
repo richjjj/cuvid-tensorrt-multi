@@ -196,7 +196,7 @@ void multi_instances_test() {
 int app_yolo() {
     // multi_instances_test();
     // test(Yolo::Type::V7, TRT::Mode::FP32, "yolov7");
-    test(Yolo::Type::V5, TRT::Mode::FP16, "yolov6n");
+    test(Yolo::Type::V5, TRT::Mode::INT8, "yolov6n");
     // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5s");
     // test(Yolo::Type::V3, TRT::Mode::FP32, "yolov3");
 

@@ -1,5 +1,5 @@
 #include "STrack.h"
-
+#include <atomic>
 STrack::STrack(vector<float> tlwh_, float score, int det_index) {
     _tlwh.resize(4);
     _tlwh.assign(tlwh_.begin(), tlwh_.end());
@@ -160,7 +160,7 @@ void STrack::mark_removed() {
 }
 
 int STrack::next_id() {
-    static int _count = 0;
+    static atomic<int> _count{0};
     _count++;
     return _count;
 }
