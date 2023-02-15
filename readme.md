@@ -1,6 +1,7 @@
 # docker 部署
 - 镜像来源：pull ngc，编译opencv
 - 容器启动命令 `docker run --name cangku_runtime -it --network host --gpus all -v /home/xmrbi/cangku_workspace:/cangku_workspace --workdir /cangku_workspace imagename "/opt/nvidia/nvidia_entrypoint.sh"`
+- docker run --name intelligenttrafficsurveillance -it --network host --pids-limit -1 --gpus all -v/data:/data -v/root/intelligenttrafficsurveillance_workspace:/intelligenttrafficsurveillance_workspace --workdir /intelligenttrafficsurveillance_workspace xmrbi/cangku
 
 # 使用
 1. 为nvcuvid创建软链接，这个库随显卡驱动发布

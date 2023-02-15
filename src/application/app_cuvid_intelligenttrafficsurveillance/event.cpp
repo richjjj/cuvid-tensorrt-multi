@@ -276,8 +276,8 @@ public:
                 else
                     callback_(2, nullptr, (char *)data.c_str(), data.size());
                 auto t5 = iLogger::timestamp_now_float();
-                INFO("image copy: %.2f ms; track: %.2f, event: %.2f; callback: %.2f", float(t4 - t3), float(t2 - t1),
-                     float(t3 - t2), float(t5 - t4));
+                // INFO("image copy: %.2f ms; track: %.2f, event: %.2f; callback: %.2f", float(t4 - t3), float(t2 - t1),
+                //      float(t3 - t2), float(t5 - t4));
                 // reset
                 job.frame_index_ = 0;
             }

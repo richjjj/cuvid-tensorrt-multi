@@ -5,7 +5,7 @@
  * Author: zhongchong
  * Date: 2023-02-01 10:12:40
  * LastEditors: zhongchong
- * LastEditTime: 2023-02-15 10:14:58
+ * LastEditTime: 2023-02-15 11:17:03
  *************************************************************************************/
 #include "intelligent_traffic.hpp"
 #include "app_yolo_gpuptr/yolo_gpuptr.hpp"
@@ -128,7 +128,7 @@ public:
             // 每个GPU多个个instances，当下设置为2个
             for (int i = 0; i < instances_per_device_; ++i) {
                 infers_[gpuid].emplace_back(std::move(YoloGPUPtr::create_infer(
-                    model_repository + "/yolov6n.INT8.B32.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
+                    model_repository + "/yolov6n.FP16.B32.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
             }
             INFO("instance.size()=%d", infers_[gpuid].size());
             for (int i = 0; i < 20; ++i) {
