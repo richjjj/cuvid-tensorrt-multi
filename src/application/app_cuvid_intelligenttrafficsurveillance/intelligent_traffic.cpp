@@ -55,7 +55,7 @@ public:
         auto gpu_id     = devices_[get_gpu_index()];
         int instance_id = ((device_count_map_[gpu_id]++) + 1) % instances_per_device_;
         auto decoder    = FFHDDecoder::create_cuvid_decoder(
-               true, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()), -1, gpu_id);
+            true, FFHDDecoder::ffmpeg2NvCodecId(demuxer->get_video_codec()), -1, gpu_id);
         if (decoder == nullptr) {
             INFOE("decoder create failed");
             state.set_value(false);
@@ -106,8 +106,8 @@ public:
                     auto t2   = iLogger::timestamp_now_float();
                     event_infer->commit({frame_index, image, objs});
                     auto t3 = iLogger::timestamp_now_float();
-                    // INFO("[%d]  [%d]--[%d] decode: %.2f; infer: %.2f; commit: %.2f", thread_id, gpu_id, instance_id,
-                    //      float(t1 - t0), (float)(t2 - t1), (float)(t3 - t2));
+                    INFO("[%d]  [%d]--[%d] decode: %.2f; infer: %.2f; commit: %.2f", thread_id, gpu_id, instance_id,
+                         float(t1 - t0), (float)(t2 - t1), (float)(t3 - t2));
                 }
             }
         }

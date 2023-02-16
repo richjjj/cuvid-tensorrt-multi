@@ -28,11 +28,12 @@ static void test_traffic() {
 #pragma omp parallel for num_threads(num_views)
     for (int i = 0; i < num_views; ++i) {
         auto replaced_string = iLogger::replace_string(raw_data, "1", std::to_string(i), 1);
-        replaced_string      = iLogger::replace_string(replaced_string, "test1", "test" + std::to_string(i), 1);
-        auto success         = instance->make_view(replaced_string);
+        // replaced_string      = iLogger::replace_string(replaced_string, "test1", "test" + std::to_string(i), 1);
+        auto success = instance->make_view(replaced_string);
         while (!success) {
-            INFO("failed to make_view[test%d] and retry", i);
+            // INFO("failed to make_view[test%d] and retry", i);
             success = instance->make_view(replaced_string);
+            iLogger::sleep(5000);
         }
     }
     iLogger::sleep(10000000);

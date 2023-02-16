@@ -87,7 +87,7 @@ public:
         if (worker_thread_.joinable()) {
             worker_thread_.join();
         }
-        INFO("EventInfer destroy.");
+        // INFO("EventInfer destroy.");
     }
     virtual string get_uri() const override {
         return config_.uri;
@@ -99,7 +99,7 @@ public:
         unique_lock<mutex> l(lock_);
         cv_.wait(l, [&]() { return jobs_.size() < 20; });
         jobs_.emplace(input);
-        cv_.notify_one();
+        cv_.notify_all();
         return true;
     }
     virtual bool startup(const string &raw_data) {
@@ -125,6 +125,7 @@ public:
                 if (!jobs_.empty()) {
                     job = std::move(jobs_.front());
                     jobs_.pop();
+                    cv_.notify_all();
                 }
             }
             auto size = jobs_.size();
