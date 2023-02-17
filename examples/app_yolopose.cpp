@@ -5,9 +5,6 @@
 
 using namespace std;
 
-bool
-    requires(const char *name);
-
 static shared_ptr<YoloposeGPUPtr::Infer> get_yolo(YoloposeGPUPtr::Type type, TRT::Mode mode, const string &model,
                                                   int device_id) {
     auto mode_name = TRT::mode_string(mode);
@@ -25,9 +22,6 @@ static shared_ptr<YoloposeGPUPtr::Infer> get_yolo(YoloposeGPUPtr::Type type, TRT
     const char *name = model.c_str();
     INFO("===================== test %s %s %s ==================================", YoloposeGPUPtr::type_name(type),
          mode_name, name);
-
-    if (!requires(name))
-        return nullptr;
 
     string onnx_file    = iLogger::format("%s.onnx", name);
     string model_file   = iLogger::format("%s.%s.trtmodel", name, mode_name);
@@ -51,7 +45,7 @@ static shared_ptr<YoloposeGPUPtr::Infer> get_yolo(YoloposeGPUPtr::Type type, TRT
     );
 }
 
-void render_to_images(vector<shared_future<YoloposeGPUPtr::BoxArray>> &objs_array, const string &name) {
+static void render_to_images(vector<shared_future<YoloposeGPUPtr::BoxArray>> &objs_array, const string &name) {
     iLogger::rmtree(name);
     iLogger::mkdir(name);
 
