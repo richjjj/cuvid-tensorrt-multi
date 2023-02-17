@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
     }
     if (strcmp(method, "plate") == 0) {
         app_plate();
-    } else if (strcmp(method, "yolopose") {
+    } else if (strcmp(method, "yolopose") == 0) {
         app_yolopose();
     } else {
         app_plate();
