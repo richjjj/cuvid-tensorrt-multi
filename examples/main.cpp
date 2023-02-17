@@ -27,6 +27,7 @@ int app_json();
 int app_bus();
 int app_test();
 #endif
+int app_yolopose();
 int app_plate();
 #ifndef JETSON
 int main(int argc, char **argv) {
@@ -74,6 +75,8 @@ int main(int argc, char **argv) {
     }
     if (strcmp(method, "plate") == 0) {
         app_plate();
+    } else if (strcmp(method, "yolopose") {
+        app_yolopose();
     } else {
         app_plate();
     }

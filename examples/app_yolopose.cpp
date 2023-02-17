@@ -124,7 +124,7 @@ static void test_soft_decode() {
     render_to_images(all_boxes, name);
 }
 
-int app_cuvid_yolopose() {
+int app_yolopose() {
     test_soft_decode();
     return 0;
 }
