@@ -1,0 +1,1 @@
+trtexec --onnx=damoyolo_tinynasL25_S_cigarette.onnx --saveEngine=damoyolo_tinynasL25_S_cigarette.FP32.B32.trtmodel --minShapes=images:1x3x640x640 --optShapes=images:8x3x640x640 --maxShapes=images:32x3x640x640

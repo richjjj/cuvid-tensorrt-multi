@@ -24,6 +24,8 @@ const char* type_name(Type type) {
             return "YoloV7";
         case Type::X:
             return "YoloX";
+        case Type::DAMO:
+            return "Damoyolo";
         default:
             return "Unknow";
     }
@@ -31,7 +33,8 @@ const char* type_name(Type type) {
 
 void decode_kernel_invoker(float* predict, int num_bboxes, int num_classes, float confidence_threshold,
                            float* invert_affine_matrix, float* parray, int max_objects, cudaStream_t stream);
-
+void damo_decode_kernel_invoker(float* predict, int num_bboxes, int num_classes, float confidence_threshold,
+                                float* invert_affine_matrix, float* parray, int max_objects, cudaStream_t stream);
 void nms_kernel_invoker(float* parray, float nms_threshold, int max_objects, cudaStream_t stream);
 
 struct AffineMatrix {
@@ -170,6 +173,8 @@ public:
             // float std[]  = {0.229, 0.224, 0.225};
             // normalize_ = CUDAKernel::Norm::mean_std(mean, std, 1/255.0f, CUDAKernel::ChannelType::Invert);
             normalize_ = CUDAKernel::Norm::None();
+        } else if (type == Type::DAMO) {
+            normalize_ = CUDAKernel::Norm::alpha_beta(1.0f, 0.0f, CUDAKernel::ChannelType::Invert);
         } else {
             INFOE("Unsupport type %d", type);
         }
@@ -179,6 +184,7 @@ public:
         nms_threshold_               = nms_threshold;
         nms_method_                  = nms_method;
         max_objects_                 = max_objects;
+        type_                        = type;
         return ControllerImpl::startup(make_tuple(file, gpuid));
     }
 
@@ -202,7 +208,7 @@ public:
         TRT::Tensor output_array_device(TRT::DataType::Float);
         int max_batch_size = engine->get_max_batch_size();
         auto input         = engine->tensor("images");
-        auto output        = engine->tensor("outputs");
+        auto output        = engine->tensor("output");
         int num_classes    = output->size(2) - 5;
 
         input_width_      = input->size(3);
@@ -248,8 +254,13 @@ public:
                 float* output_array_ptr   = output_array_device.gpu<float>(ibatch);
                 auto affine_matrix        = affin_matrix_device.gpu<float>(ibatch);
                 checkCudaRuntime(cudaMemsetAsync(output_array_ptr, 0, sizeof(int), stream_));
-                decode_kernel_invoker(image_based_output, output->size(1), num_classes, confidence_threshold_,
-                                      affine_matrix, output_array_ptr, MAX_IMAGE_BBOX, stream_);
+                if (type_ == Type::DAMO) {
+                    damo_decode_kernel_invoker(image_based_output, output->size(1), num_classes, confidence_threshold_,
+                                               affine_matrix, output_array_ptr, MAX_IMAGE_BBOX, stream_);
+                } else {
+                    decode_kernel_invoker(image_based_output, output->size(1), num_classes, confidence_threshold_,
+                                          affine_matrix, output_array_ptr, MAX_IMAGE_BBOX, stream_);
+                }
 
                 if (nms_method_ == NMSMethod::FastGPU) {
                     nms_kernel_invoker(output_array_ptr, nms_threshold_, MAX_IMAGE_BBOX, stream_);
@@ -363,6 +374,7 @@ public:
     }
 
 private:
+    Type type_                        = Type::V5;
     int input_width_                  = 0;
     int input_height_                 = 0;
     int gpu_                          = 0;
@@ -395,6 +407,8 @@ void image_to_tensor(const cv::Mat& image, shared_ptr<TRT::Tensor>& tensor, Type
         // float std[]  = {0.229, 0.224, 0.225};
         // normalize_ = CUDAKernel::Norm::mean_std(mean, std, 1/255.0f, CUDAKernel::ChannelType::Invert);
         normalize = CUDAKernel::Norm::None();
+    } else if (type == Type::DAMO) {
+        normalize = CUDAKernel::Norm::alpha_beta(1.0f, 0.0f, CUDAKernel::ChannelType::Invert);
     } else {
         INFOE("Unsupport type %d", type);
     }

@@ -242,7 +242,7 @@ public:
                     auto objs = objs_future.get();
                     for (const auto &obj : objs) {
                         nlohmann::json event_json = {{"box", {obj.left, obj.top, obj.right, obj.bottom}},
-                                                     {"class_label", obj.class_label},
+                                                     {"class_label", 2},  // damo 赋值为2
                                                      {"score", obj.confidence}};
                         tmp_json["det_results"].emplace_back(event_json);
                     }
@@ -286,7 +286,8 @@ public:
                     yolo_pose_->commit(cv::Mat(640, 640, CV_8UC3)).get();
             }
         }
-        yolo_ = get_yolo(YoloGPUPtr::Type::V5, TRT::Mode::FP16, det_name, 0);
+        auto type = (det_name.find("damo") != string::npos) ? YoloGPUPtr::Type::DAMO : YoloGPUPtr::Type::V5;
+        yolo_     = get_yolo(type, TRT::Mode::FP16, det_name, 0);
         if (yolo_ == nullptr) {
             INFOE("create tensorrt engine failed.");
             return false;

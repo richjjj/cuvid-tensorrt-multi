@@ -28,8 +28,7 @@ struct Box {
 };
 
 typedef std::vector<Box> BoxArray;
-enum class Type : int { V5 = 0, V3 = V5, X = 1 };
-
+enum class Type : int { V5 = 0, X = 1, V3 = 2, V7 = 3, DAMO = 4 };  // damoyolo
 enum class NMSMethod : int {
     CPU     = 0,  // General, for estimate mAP
     FastGPU = 1   // Fast NMS with a small loss of accuracy in corner cases

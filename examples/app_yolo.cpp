@@ -146,7 +146,7 @@ static void test(Yolo::Type type, TRT::Mode mode, const string& model) {
                      test_batch_size,  // max batch size
                      onnx_file,        // source
                      model_file,       // save to
-                     {}, int8process, "inference");
+                     {}, int8process, "calibration_sample", "calibratorfile.cali");
     }
 
     inference_and_performance(deviceid, model_file, mode, type, name);
@@ -196,7 +196,8 @@ void multi_instances_test() {
 int app_yolo() {
     // multi_instances_test();
     // test(Yolo::Type::V7, TRT::Mode::FP32, "yolov7");
-    test(Yolo::Type::V5, TRT::Mode::INT8, "yolov6n");
+    // test(Yolo::Type::DAMO, TRT::Mode::FP32, "damoyolo_tinynasL25_S_cigarette");
+    test(Yolo::Type::DAMO, TRT::Mode::FP32, "damoyolo_tinynasL25_S_cigarette");
     // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5s");
     // test(Yolo::Type::V3, TRT::Mode::FP32, "yolov3");
 

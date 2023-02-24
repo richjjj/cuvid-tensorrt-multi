@@ -59,6 +59,52 @@ static __global__ void decode_kernel(float* predict, int num_bboxes, int num_cla
     *pout_item++     = label;
     *pout_item++     = 1;  // 1 = keep, 0 = ignore
 }
+static __global__ void damo_decode_kernel(float* predict, int num_bboxes, int num_classes, float confidence_threshold,
+                                          float* invert_affine_matrix, float* parray, int max_objects) {
+    int position = blockDim.x * blockIdx.x + threadIdx.x;
+    if (position >= num_bboxes)
+        return;
+
+    float* pitem     = predict + (5 + num_classes) * position;
+    float objectness = pitem[4];
+    if (objectness < confidence_threshold)
+        return;
+
+    float* class_confidence = pitem + 5;
+    float confidence        = *class_confidence++;
+    int label               = 0;
+    for (int i = 1; i < num_classes; ++i, ++class_confidence) {
+        if (*class_confidence > confidence) {
+            confidence = *class_confidence;
+            label      = i;
+        }
+    }
+
+    confidence *= objectness;
+    if (confidence < confidence_threshold)
+        return;
+
+    int index = atomicAdd(parray, 1);
+    if (index >= max_objects)
+        return;
+
+    float left   = *pitem++;
+    float top    = *pitem++;
+    float right  = *pitem++;
+    float bottom = *pitem++;
+
+    affine_project(invert_affine_matrix, left, top, &left, &top);
+    affine_project(invert_affine_matrix, right, bottom, &right, &bottom);
+
+    float* pout_item = parray + 1 + index * NUM_BOX_ELEMENT;
+    *pout_item++     = left;
+    *pout_item++     = top;
+    *pout_item++     = right;
+    *pout_item++     = bottom;
+    *pout_item++     = confidence;
+    *pout_item++     = label;
+    *pout_item++     = 1;  // 1 = keep, 0 = ignore
+}
 
 static __device__ float box_iou(float aleft, float atop, float aright, float abottom, float bleft, float btop,
                                 float bright, float bbottom) {
@@ -110,6 +156,13 @@ void decode_kernel_invoker(float* predict, int num_bboxes, int num_classes, floa
     auto block = CUDATools::block_dims(num_bboxes);
     checkCudaKernel(decode_kernel<<<grid, block, 0, stream>>>(predict, num_bboxes, num_classes, confidence_threshold,
                                                               invert_affine_matrix, parray, max_objects));
+}
+void damo_decode_kernel_invoker(float* predict, int num_bboxes, int num_classes, float confidence_threshold,
+                                float* invert_affine_matrix, float* parray, int max_objects, cudaStream_t stream) {
+    auto grid  = CUDATools::grid_dims(num_bboxes);
+    auto block = CUDATools::block_dims(num_bboxes);
+    checkCudaKernel(damo_decode_kernel<<<grid, block, 0, stream>>>(
+        predict, num_bboxes, num_classes, confidence_threshold, invert_affine_matrix, parray, max_objects));
 }
 
 void nms_kernel_invoker(float* parray, float nms_threshold, int max_objects, cudaStream_t stream) {

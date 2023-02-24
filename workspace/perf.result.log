@@ -19,3 +19,13 @@ yolov6n,YoloV5,FP16,1.590627
 yolov6n,YoloV5,FP16,1.475411
 yolov6n,YoloV5,INT8,1.255294
 yolov6n,YoloV5,INT8,0.988810
+damoyolo_tinynasL25_S_cigarette,Unknow,FP32,8.903099
+damoyolo_tinynasL25_S_cigarette,Damoyolo,FP32,8.860731
+damoyolo_tinynasL25_S_cigarette,Damoyolo,FP32,9.010548
+damoyolo_tinynasL25_S_cigarette,Damoyolo,FP32,8.751171
+damoyolo_tinynasL25_S,Damoyolo,FP32,9.164418
+damoyolo_tinynasL25_S,Damoyolo,FP32,9.252915
+damoyolo_tinynasL25_S,Damoyolo,FP32,8.970502
+damoyolo_tinynasL25_S,Damoyolo,FP32,9.067451
+damoyolo_tinynasL25_S,Damoyolo,FP32,9.051497
+damoyolo_tinynasL25_S_cigarette,Damoyolo,FP32,8.711994

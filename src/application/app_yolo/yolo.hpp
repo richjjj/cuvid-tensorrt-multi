@@ -14,7 +14,7 @@ namespace Yolo {
 using namespace std;
 using namespace ObjectDetector;
 
-enum class Type : int { V5 = 0, X = 1, V3 = 2, V7 = 3 };
+enum class Type : int { V5 = 0, X = 1, V3 = 2, V7 = 3, DAMO = 4 };  // damoyolo
 
 enum class NMSMethod : int {
     CPU     = 0,  // General
