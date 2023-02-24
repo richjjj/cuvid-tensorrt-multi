@@ -10,7 +10,8 @@ stdcpp    := c++14
 cuda_home := /usr/local/cuda
 cpp_pkg   := $(shell pwd)/third_party
 syslib    := 
-cuda_arch := -gencode=arch=compute_75,code=sm_75
+cuda_arch := 
+# -gencode=arch=compute_75,code=sm_75
 
 # 定义cpp的路径查找和依赖项mk文件
 cpp_srcs := $(shell find $(srcdir) -name "*.cpp")
