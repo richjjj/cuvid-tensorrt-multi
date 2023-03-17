@@ -149,7 +149,7 @@ static void yolo_plate_test() {
 static void plate_e2e_test() {
     auto e2e = Clpr::create_e2e("plate_detect-blazeface_fpn-384", "plate_rec_color", 0.4f);
 
-    auto test_image = "exp/test1.jpg";
+    auto test_image = "inference/wc_20230317111730.png";
     cv::Mat image   = cv::imread(test_image);
     // warm up
     for (int i = 0; i < 20; ++i) {
@@ -169,8 +169,7 @@ static void plate_e2e_test() {
     Clpr::Polygon polygon2{cv::Point(874, 1134), cv::Point(1574, 1157), cv::Point(1505, 513), cv::Point(1083, 527)};
     Clpr::Polygon polygon3{cv::Point(1656, 1148), cv::Point(2291, 1141), cv::Point(1892, 495), cv::Point(1499, 504)};
     Clpr::Carports carports1{polygon2, polygon1, polygon3};
-    test_image = "exp/test1.jpg";
-    image      = cv::imread(test_image);
+    image = cv::imread(test_image);
 
     // 耗时
     auto begin_timer = iLogger::timestamp_now_float();
