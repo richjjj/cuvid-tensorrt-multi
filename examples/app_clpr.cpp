@@ -169,7 +169,8 @@ static void plate_e2e_test() {
     Clpr::Polygon polygon2{cv::Point(874, 1134), cv::Point(1574, 1157), cv::Point(1505, 513), cv::Point(1083, 527)};
     Clpr::Polygon polygon3{cv::Point(1656, 1148), cv::Point(2291, 1141), cv::Point(1892, 495), cv::Point(1499, 504)};
     Clpr::Carports carports1{polygon2, polygon1, polygon3};
-    image = cv::imread(test_image);
+    test_image = "exp/test1.jpg";
+    image      = cv::imread(test_image);
 
     // 耗时
     auto begin_timer = iLogger::timestamp_now_float();
