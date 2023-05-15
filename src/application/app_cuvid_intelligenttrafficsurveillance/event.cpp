@@ -241,7 +241,7 @@ public:
                                 // person
                                 if (obj.class_label == 0 && obj.confidence > 0.2) {
                                     for (auto &roi : e.rois) {
-                                        // 判断是否停住
+                                        // 1. 判断行人是否在区域里 2. 需要有位移
                                         if (isPointInPolygon(roi.points, track.current_center_point_)) {
                                             json object_json = {
                                                 {"objectID", track.track_id},
