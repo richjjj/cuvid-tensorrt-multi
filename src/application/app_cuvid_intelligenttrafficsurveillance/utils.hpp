@@ -93,4 +93,20 @@ bool isIntersect(const Line& line1, const deque<cv::Point2f>& coordinates) {
     }
     return false;
 }
+
+// object速度
+float speedOfTrack(const deque<cv::Point2f>& coordinates) {
+    auto length = coordinates.size();
+    if (length < 5)
+        return 0;
+    float sum = 0;
+    int count = 0;
+    for (int i = 0; i < coordinates.size() - 1; i++) {
+        auto x1 = coordinates[i].x;
+        auto x2 = coordinates[i + 1].x;
+        sum += abs(x2 - x2);
+        count += 1;
+    }
+    return sum / count;
+}
 };  // namespace Intelligent

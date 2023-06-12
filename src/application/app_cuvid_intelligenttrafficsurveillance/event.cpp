@@ -243,14 +243,17 @@ public:
                                     for (auto &roi : e.rois) {
                                         // 1. 判断行人是否在区域里 2. 需要有位移
                                         if (isPointInPolygon(roi.points, track.current_center_point_)) {
-                                            json object_json = {
-                                                {"objectID", track.track_id},
-                                                {"label", 1},
-                                                {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
-                                                {"confidence", obj.confidence},
-                                                {"roi_name", roi.roiName}};
-                                            objects_json.emplace_back(object_json);
-                                            break;
+                                            float speed = speedOfTrack(track.center_points_.data_);
+                                            if (speed > 2 && speed < 100) {
+                                                json object_json = {
+                                                    {"objectID", track.track_id},
+                                                    {"label", 1},
+                                                    {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                    {"confidence", obj.confidence},
+                                                    {"roi_name", roi.roiName}};
+                                                objects_json.emplace_back(object_json);
+                                                break;
+                                            }
                                         }
                                     }
                                 }

@@ -194,7 +194,7 @@ private:
 };
 shared_ptr<IntelligentTraffic> create_intelligent_traffic(const string &model_repository, const vector<int> gpuids,
                                                           int instances_per_device) {
-    iLogger::set_logger_save_directory("/tmp/intelligent_traffic");
+    // iLogger::set_logger_save_directory("/tmp/intelligent_traffic");
     shared_ptr<IntelligentTrafficImpl> instance(new IntelligentTrafficImpl());
     if (!instance->startup(model_repository, gpuids, instances_per_device)) {
         instance.reset();
