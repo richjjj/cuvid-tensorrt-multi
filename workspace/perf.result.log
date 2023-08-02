@@ -29,3 +29,15 @@ damoyolo_tinynasL25_S,Damoyolo,FP32,8.970502
 damoyolo_tinynasL25_S,Damoyolo,FP32,9.067451
 damoyolo_tinynasL25_S,Damoyolo,FP32,9.051497
 damoyolo_tinynasL25_S_cigarette,Damoyolo,FP32,8.711994
+yolov8n.transd,YoloV8,FP16,1.671242
+yolov8n.transd,YoloV8,FP32,3.350351
+yolov8n.transd,YoloV8,FP32,3.364455
+yolov8n-traffic.transd,YoloV8,FP32,3.281051
+yolov8n-traffic.transd,YoloV8,FP32,3.281220
+yolov8n-traffic.transd,YoloV8,FP32,3.268630
+yolov8n.transd,YoloV8,FP32,3.334041
+yolov8n-traffic.transd,YoloV8,FP32,3.332957
+yolov8n-traffic.transd,YoloV8,FP16,1.694322
+yolov8n-traffic2.transd,YoloV8,FP32,3.326621
+yolov8n-traffic.transd,YoloV8,FP32,5.478480
+yolov8n-traffic.transd,YoloV8,FP32,7.164624

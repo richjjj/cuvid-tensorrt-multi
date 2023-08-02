@@ -26,6 +26,8 @@ const char* type_name(Type type) {
             return "YoloX";
         case Type::DAMO:
             return "Damoyolo";
+        case Type::V8:
+            return "YoloV8";
         default:
             return "Unknow";
     }
@@ -35,6 +37,8 @@ void decode_kernel_invoker(float* predict, int num_bboxes, int num_classes, floa
                            float* invert_affine_matrix, float* parray, int max_objects, cudaStream_t stream);
 void damo_decode_kernel_invoker(float* predict, int num_bboxes, int num_classes, float confidence_threshold,
                                 float* invert_affine_matrix, float* parray, int max_objects, cudaStream_t stream);
+void v8_decode_kernel_invoker(float* predict, int num_bboxes, int num_classes, float confidence_threshold,
+                              float* invert_affine_matrix, float* parray, int max_objects, cudaStream_t stream);
 void nms_kernel_invoker(float* parray, float nms_threshold, int max_objects, cudaStream_t stream);
 
 struct AffineMatrix {
@@ -166,7 +170,7 @@ public:
 
     virtual bool startup(const string& file, Type type, int gpuid, float confidence_threshold, float nms_threshold,
                          NMSMethod nms_method, int max_objects, bool use_multi_preprocess_stream) {
-        if (type == Type::V5 || type == Type::V3 || type == Type::V7) {
+        if (type == Type::V5 || type == Type::V3 || type == Type::V7 || type == Type::V8) {
             normalize_ = CUDAKernel::Norm::alpha_beta(1 / 255.0f, 0.0f, CUDAKernel::ChannelType::Invert);
         } else if (type == Type::X) {
             // float mean[] = {0.485, 0.456, 0.406};
@@ -207,9 +211,13 @@ public:
         TRT::Tensor affin_matrix_device(TRT::DataType::Float);
         TRT::Tensor output_array_device(TRT::DataType::Float);
         int max_batch_size = engine->get_max_batch_size();
-        auto input         = engine->tensor("images");
-        auto output        = engine->tensor("output");
-        int num_classes    = output->size(2) - 5;
+        auto input         = engine->input(0);
+        auto output        = engine->output(0);
+        // auto input         = engine->tensor("images");
+        // auto output        = engine->tensor("output");
+        int num_classes = output->size(2) - 5;
+        if (type_ == Type::V8)
+            num_classes = output->size(2) - 4;
 
         input_width_      = input->size(3);
         input_height_     = input->size(2);
@@ -257,6 +265,9 @@ public:
                 if (type_ == Type::DAMO) {
                     damo_decode_kernel_invoker(image_based_output, output->size(1), num_classes, confidence_threshold_,
                                                affine_matrix, output_array_ptr, MAX_IMAGE_BBOX, stream_);
+                } else if (type_ == Type::V8) {
+                    v8_decode_kernel_invoker(image_based_output, output->size(1), num_classes, confidence_threshold_,
+                                             affine_matrix, output_array_ptr, MAX_IMAGE_BBOX, stream_);
                 } else {
                     decode_kernel_invoker(image_based_output, output->size(1), num_classes, confidence_threshold_,
                                           affine_matrix, output_array_ptr, MAX_IMAGE_BBOX, stream_);
@@ -400,7 +411,7 @@ shared_ptr<Infer> create_infer(const string& engine_file, Type type, int gpuid, 
 
 void image_to_tensor(const cv::Mat& image, shared_ptr<TRT::Tensor>& tensor, Type type, int ibatch) {
     CUDAKernel::Norm normalize;
-    if (type == Type::V5 || type == Type::V3 || type == Type::V7) {
+    if (type == Type::V5 || type == Type::V3 || type == Type::V7 || type == Type::V8) {
         normalize = CUDAKernel::Norm::alpha_beta(1 / 255.0f, 0.0f, CUDAKernel::ChannelType::Invert);
     } else if (type == Type::X) {
         // float mean[] = {0.485, 0.456, 0.406};

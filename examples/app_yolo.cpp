@@ -40,7 +40,7 @@ static void inference_and_performance(int deviceid, const string& engine_file, T
     auto engine = Yolo::create_infer(engine_file,               // engine file
                                      type,                      // yolo type, Yolo::Type::V5 / Yolo::Type::X
                                      deviceid,                  // gpu id
-                                     0.25f,                     // confidence threshold
+                                     0.7f,                      // confidence threshold
                                      0.45f,                     // nms threshold
                                      Yolo::NMSMethod::FastGPU,  // NMS method, fast GPU / CPU
                                      1024,                      // max objects
@@ -138,7 +138,7 @@ static void test(Yolo::Type type, TRT::Mode mode, const string& model) {
         return;
 
     string onnx_file    = iLogger::format("%s.onnx", name);
-    int test_batch_size = 32;
+    int test_batch_size = 1;
     string model_file   = iLogger::format("%s.%s.B%d.trtmodel", name, mode_name, test_batch_size);
 
     if (not iLogger::exists(model_file)) {
@@ -195,9 +195,9 @@ void multi_instances_test() {
 }
 int app_yolo() {
     // multi_instances_test();
-    // test(Yolo::Type::V7, TRT::Mode::FP32, "yolov7");
+    test(Yolo::Type::V8, TRT::Mode::FP32, "yolov8n-traffic.transd");
     // test(Yolo::Type::DAMO, TRT::Mode::FP32, "damoyolo_tinynasL25_S_cigarette");
-    test(Yolo::Type::DAMO, TRT::Mode::FP32, "damoyolo_tinynasL25_S_cigarette");
+    // test(Yolo::Type::DAMO, TRT::Mode::FP32, "damoyolo_tinynasL25_S_cigarette");
     // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5s");
     // test(Yolo::Type::V3, TRT::Mode::FP32, "yolov3");
 
