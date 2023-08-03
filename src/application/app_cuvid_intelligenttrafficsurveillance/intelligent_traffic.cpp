@@ -133,7 +133,7 @@ public:
             // 每个GPU多个个instances，当下设置为2个
             for (int i = 0; i < instances_per_device_; ++i) {
                 infers_[gpuid].emplace_back(std::move(YoloGPUPtr::create_infer(
-                    model_repository + "/yolov6n.FP16.B32.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
+                    model_repository + "/yolov5n-traffic.INT8.B1.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
             }
             INFO("instance.size()=%d", infers_[gpuid].size());
             for (int i = 0; i < 20; ++i) {
