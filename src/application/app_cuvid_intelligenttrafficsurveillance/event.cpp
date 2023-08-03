@@ -150,7 +150,8 @@ public:
                                 auto &track = tracks[t];
                                 auto &obj   = objs[track.detection_index];
                                 // car
-                                if (obj.class_label == 2 && obj.confidence > 0.4) {
+                                // if (obj.class_label == 2 && obj.confidence > 0.4) {
+                                if (obj.class_label == 0 && obj.confidence > 0.4) {
                                     // 判断在哪个roi
                                     for (auto &roi : e.rois) {
                                         if (isPointInPolygon(roi.points, track.current_center_point_)) {
@@ -181,7 +182,7 @@ public:
                                 auto &track = tracks[t];
                                 auto &obj   = objs[track.detection_index];
                                 // car
-                                if (obj.class_label == 2) {
+                                if (obj.class_label == 0) {
                                     for (int i = 0; i < e.rois.size(); ++i) {
                                         if (isPointInPolygon(e.rois[i].points, track.current_center_point_)) {
                                             ++car_count[i];
@@ -210,7 +211,7 @@ public:
                                 auto &track = tracks[t];
                                 auto &obj   = objs[track.detection_index];
                                 // car
-                                if (obj.class_label == 2 && obj.confidence > 0.4) {
+                                if (obj.class_label == 0 && obj.confidence > 0.4) {
                                     for (auto &roi : e.rois) {
                                         // bool changeLine
                                         Line l{roi.points[0], roi.points[1]};
@@ -239,7 +240,7 @@ public:
                                 auto &track = tracks[t];
                                 auto &obj   = objs[track.detection_index];
                                 // person
-                                if (obj.class_label == 0 && obj.confidence > 0.2) {
+                                if (obj.class_label == 1 && obj.confidence > 0.6) {
                                     for (auto &roi : e.rois) {
                                         // 1. 判断行人是否在区域里 2. 需要有位移
                                         if (isPointInPolygon(roi.points, track.current_center_point_)) {

@@ -18,3 +18,5 @@ workspace/*.jpg
 compile_commands.json
 workspace/*result/
 test*.mp4
+workspace/sample_images
+workspace/calibratorfile.cali

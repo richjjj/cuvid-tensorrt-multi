@@ -41,3 +41,5 @@ yolov8n-traffic.transd,YoloV8,FP16,1.694322
 yolov8n-traffic2.transd,YoloV8,FP32,3.326621
 yolov8n-traffic.transd,YoloV8,FP32,5.478480
 yolov8n-traffic.transd,YoloV8,FP32,7.164624
+yolov5n-traffic,YoloV5,FP32,2.479364
+yolov5n-traffic,YoloV5,INT8,1.209058
