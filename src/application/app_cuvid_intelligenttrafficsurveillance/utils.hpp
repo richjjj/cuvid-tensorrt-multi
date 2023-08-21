@@ -21,7 +21,7 @@ const double THRESHOLD = 5;  // 阈值
 
 bool isStopped(const vector<cv::Point2f>& coordinates) {
     int n = coordinates.size();
-    if (n < 10)
+    if (n < 60)
         return false;
 
     float dx = 0;

@@ -71,7 +71,7 @@ public:
     vector<float> tlwh;
     vector<float> tlbr;
     cv::Point2f current_center_point_;
-    CircleQueue<cv::Point2f> center_points_{30};
+    CircleQueue<cv::Point2f> center_points_{120};
     // vector<float> last_tlbr;
 
     int frame_id;
