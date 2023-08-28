@@ -26,10 +26,11 @@ bool isStopped(const vector<cv::Point2f>& coordinates) {
 
     float dx = 0;
     float dy = 0;
-    for (std::size_t i = 1; i < n; ++i) {
-        dx += fabs(coordinates[i].x - coordinates[i - 1].x);
-        dy += fabs(coordinates[i].y - coordinates[i - 1].y);
-    }
+    // for (std::size_t i = 1; i < n; ++i) {
+    //     dx += fabs(coordinates[i].x - coordinates[i - 1].x);
+    //     dy += fabs(coordinates[i].y - coordinates[i - 1].y);
+    // }
+    dy = fabs(coordinates[0].y - coordinates[58].y);
     return dx < THRESHOLD && dy < THRESHOLD;
 
     // int count = 0;
@@ -95,18 +96,34 @@ bool isIntersect(const Line& line1, const deque<cv::Point2f>& coordinates) {
 }
 
 // object速度
+// float speedOfTrack(const deque<cv::Point2f>& coordinates) {
+//     auto length = coordinates.size();
+//     if (length < 5)
+//         return 0;
+//     float sum = 0;
+//     int count = 0;
+//     for (int i = 0; i < coordinates.size() - 1; i++) {
+//         auto x1 = coordinates[i].x;
+//         auto x2 = coordinates[i + 1].x;
+//         sum += abs(x2 - x2);
+//         count += 1;
+//     }
+//     return sum / count;
+// }
 float speedOfTrack(const deque<cv::Point2f>& coordinates) {
     auto length = coordinates.size();
-    if (length < 5)
+    if (length < 10)
         return 0;
     float sum = 0;
     int count = 0;
-    for (int i = 0; i < coordinates.size() - 1; i++) {
-        auto x1 = coordinates[i].x;
-        auto x2 = coordinates[i + 1].x;
-        sum += abs(x2 - x2);
+    for (int i = length - 5; i < length; i++) {
+        auto y1 = coordinates[i].y;
+        auto y2 = coordinates[i + 1].y;
+        sum += abs(y2 - y1);
         count += 1;
     }
+    INFO("speed of person =%f", sum / count);
     return sum / count;
 }
+
 };  // namespace Intelligent
