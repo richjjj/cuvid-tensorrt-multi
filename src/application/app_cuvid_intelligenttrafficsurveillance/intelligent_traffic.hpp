@@ -30,7 +30,7 @@ public:
     // stop 所有视频流
     virtual void stop() = 0;
     // 等待所有流完成
-    virtual void join() = 0;
+    // virtual void join() = 0;
     // 停止指定视频流，dis_uri 为rtsp流地址
     virtual void disconnect_view(const string& dis_uri) = 0;
     // 获取当前所有的视频流

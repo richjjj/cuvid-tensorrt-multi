@@ -328,6 +328,79 @@ public:
                                 json event_json = {{"eventName", "xingrenchuangru"}, {"objects", objects_json}};
                                 events_json.emplace_back(event_json);
                             }
+                        } else if (e.eventName == "feijidongche") {
+                            json objects_json = json::array();
+                            for (size_t t = 0; t < tracks.size(); t++) {
+                                auto &track = tracks[t];
+                                auto &obj   = objs[track.detection_index];
+                                // person
+                                // if (obj.class_label == 0 && obj.confidence > 0.6) {
+                                if (obj.class_label == 2 && obj.confidence > 0.3) {
+                                    if (e.rois.empty()) {
+                                        json object_json = {{"objectID", track.track_id},
+                                                            {"label", 2},
+                                                            {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                            {"confidence", obj.confidence},
+                                                            {"roi_name", "full_image"}};
+                                        objects_json.emplace_back(object_json);
+
+                                    } else {
+                                        for (auto &roi : e.rois) {
+                                            // 1. 判断行人是否在区域里 2. 需要有位移
+                                            if (isPointInPolygon(roi.points, track.current_center_point_)) {
+                                                json object_json = {
+                                                    {"objectID", track.track_id},
+                                                    {"label", 2},
+                                                    {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                    {"confidence", obj.confidence},
+                                                    {"roi_name", roi.roiName}};
+                                                objects_json.emplace_back(object_json);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if (!objects_json.empty()) {
+                                json event_json = {{"eventName", "feijidongche"}, {"objects", objects_json}};
+                                events_json.emplace_back(event_json);
+                            }
+                        } else if (e.eventName == "paosawu") {  // 无跟踪
+                            json objects_json = json::array();
+                            for (size_t t = 0; t < objs.size(); t++) {
+                                auto &obj = objs[t];
+                                // psw
+                                if (obj.class_label == 3 && obj.confidence > 0.6) {
+                                    if (e.rois.empty()) {
+                                        json object_json = {{"objectID", 0},
+                                                            {"label", 3},
+                                                            {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                            {"confidence", obj.confidence},
+                                                            {"roi_name", "full_image"}};
+                                        objects_json.emplace_back(object_json);
+
+                                    } else {
+                                        for (auto &roi : e.rois) {
+                                            // 1.判断抛洒物
+                                            if (isPointInPolygon(roi.points, cv::Point((obj.left + obj.right) / 2,
+                                                                                       (obj.top + obj.bottom) / 2))) {
+                                                json object_json = {
+                                                    {"objectID", 0},
+                                                    {"label", 3},
+                                                    {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                    {"confidence", obj.confidence},
+                                                    {"roi_name", roi.roiName}};
+                                                objects_json.emplace_back(object_json);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if (!objects_json.empty()) {
+                                json event_json = {{"eventName", "paosawu"}, {"objects", objects_json}};
+                                events_json.emplace_back(event_json);
+                            }
                         } else if (e.eventName == "test") {
                             json objects_json = json::array();
                             for (size_t t = 0; t < tracks.size(); t++) {
@@ -389,8 +462,8 @@ public:
                 else
                     callback_(2, nullptr, (char *)data.c_str(), data.size());
                 auto t5 = iLogger::timestamp_now_float();
-                INFO("total: %.2fms; image copy: %.2f ms; track: %.2f, event: %.2f; callback: %.2f", float(t5 - t1),
-                     float(t4 - t3), float(t2 - t1), float(t3 - t2), float(t5 - t4));
+                // INFO("total: %.2fms; image copy: %.2f ms; track: %.2f, event: %.2f; callback: %.2f", float(t5 - t1),
+                //      float(t4 - t3), float(t2 - t1), float(t3 - t2), float(t5 - t4));
                 // reset
                 job.frame_index_ = 0;
             }

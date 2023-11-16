@@ -103,11 +103,18 @@ public:
                     auto objs_future = infers_[gpu_id][instance_id]->commit(image);
 
                     auto objs = objs_future.get();
-                    auto t2   = iLogger::timestamp_now_float();
+                    if (frame_index % 250 == 0) {  // 每10秒识别一次
+                        auto objs_psw = infers_psw_[gpu_id][instance_id]->commit(image).get();
+                        for (auto &obj : objs_psw) {
+                            obj.class_label += 3;  // 在traffic基础上+3
+                            objs.emplace_back(obj);
+                        }
+                    }
+                    auto t2 = iLogger::timestamp_now_float();
                     event_infer->commit({frame_index, image, objs});
                     auto t3 = iLogger::timestamp_now_float();
-                    INFO("[%d]  [%d]--[%d] decode: %.2f; infer: %.2f; commit: %.2f", thread_id, gpu_id, instance_id,
-                         float(t1 - t0), (float)(t2 - t1), (float)(t3 - t2));
+                    // INFO("[%d]  [%d]--[%d] decode: %.2f; infer: %.2f; commit: %.2f", thread_id, gpu_id, instance_id,
+                    //      float(t1 - t0), (float)(t2 - t1), (float)(t3 - t2));
                 }
             }
         }
@@ -138,11 +145,16 @@ public:
             for (int i = 0; i < instances_per_device_; ++i) {
                 infers_[gpuid].emplace_back(std::move(YoloGPUPtr::create_infer(
                     model_repository + "/yolov5n-traffic.INT8.B1.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
+                infers_psw_[gpuid].emplace_back(std::move(YoloGPUPtr::create_infer(
+                    model_repository + "/yolov5n-psw.FP32.B1.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
             }
             INFO("instance.size()=%d", infers_[gpuid].size());
             for (int i = 0; i < 20; ++i) {
                 // warm up
                 for (auto &infer : infers_[gpuid]) {
+                    infer->commit(cv::Mat(640, 640, CV_8UC3)).get();
+                }
+                for (auto &infer : infers_psw_[gpuid]) {
                     infer->commit(cv::Mat(640, 640, CV_8UC3)).get();
                 }
             }
@@ -160,7 +172,7 @@ public:
         return true;
     }
 
-    virtual void join() override {
+    virtual void join() {
         for (auto &t : ts_) {
             if (t.joinable())
                 t.join();
@@ -192,6 +204,7 @@ private:
     // vector<shared_ptr<YoloGPUPtr::Infer>> infers_;
     int instances_per_device_{1};
     map<unsigned int, vector<shared_ptr<YoloGPUPtr::Infer>>> infers_;
+    map<unsigned int, vector<shared_ptr<YoloGPUPtr::Infer>>> infers_psw_;  // 抛洒物
     atomic<int> device_count_map_[4];
     atomic<unsigned int> thread_id_{0};
     atomic<unsigned int> cursor_{0};

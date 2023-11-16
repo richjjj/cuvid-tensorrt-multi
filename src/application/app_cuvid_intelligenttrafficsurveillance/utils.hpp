@@ -46,17 +46,23 @@ struct Line {
 // 判断车辆逆行
 bool isRetrograde(const deque<cv::Point2f>& coordinates) {
     auto length = coordinates.size();
-    if (length < 10)
+    if (length < 20 || length > 30)
         return false;
-    float sum = 0;
-    int count = 0;
-    for (int i = length - 5; i < length; i++) {
+    float sum   = 0;
+    float sum_x = 0;
+    int count   = 0;
+    for (int i = length - 15; i < length; i++) {
         auto y1 = coordinates[i].y;
         auto y2 = coordinates[i + 1].y;
+        if (y1 < 500 || y2 < 500)  // 不考虑远处的
+            continue;
+        sum_x += (coordinates[i + 1].x - coordinates[i].x);
         sum += y2 - y1;
         count += 1;
     }
-    if (sum > 5)  // 若为正则逆行
+    float speed = sum / count;
+    INFO("逆行speed: %f", speed);
+    if (speed > 25 & sum > 500 & sum_x < -100)  // 若为正则逆行
     {
         return true;
     } else
@@ -66,6 +72,9 @@ bool isRetrograde(const deque<cv::Point2f>& coordinates) {
 // 判断车辆轨迹线段与给定线段是否相交
 bool isIntersect(const Line& line1, const Line& line2) {
     // 可以用上车辆轨迹
+    float min_y = std::min(line2.p1.y, line2.p2.y);
+    if (line1.p1.y < min_y || line1.p2.y < min_y)
+        return false;
     cv::Point2f p = line1.p1, q = line2.p1, r = line2.p2 - line2.p1, s = line1.p2 - line1.p1;
     float r_cross_s = r.cross(s);
     if (abs(r_cross_s) < 1e-8) {
@@ -81,12 +90,12 @@ bool isIntersect(const Line& line1, const Line& line2) {
 }
 bool isIntersect(const Line& line1, const deque<cv::Point2f>& coordinates) {
     vector<cv::Point2f> v(coordinates.begin(), coordinates.end());
-    if (v.size() < 10)
+    if (v.size() < 15 || v.size() > 25)
         return false;
     std::vector<Line> lines;
-    for (int i = 0; i < coordinates.size() - 1; i++) {
+    for (int i = 5; i < coordinates.size() - 1; i++) {
         Line line;
-        line.p1 = coordinates[0];
+        line.p1 = coordinates[5];
         line.p2 = coordinates[i + 1];
         lines.push_back(line);
     }
@@ -130,7 +139,7 @@ float speedOfTrack(const deque<cv::Point2f>& coordinates) {
         sum += abs(y2 - y1);
         count += 1;
     }
-    INFO("speed of person =%f", sum / count);
+    // INFO("speed of person =%f", sum / count);
     return sum / count;
 }
 

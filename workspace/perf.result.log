@@ -46,3 +46,4 @@ yolov5n-traffic,YoloV5,INT8,1.209058
 yolov7_qat_640,YoloV7,INT8,4.782980
 yolov7_qat_640,YoloV7,INT8,4.866992
 yolov7_qat_640,YoloV7,INT8,4.811226
+yolov5n-psw,YoloV5,FP32,2.449132

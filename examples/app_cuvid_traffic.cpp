@@ -56,7 +56,7 @@ static void test_traffic() {
         }
     }
     // iLogger::sleep(10000000);
-    instance->join();
+    // instance->join();
 }
 
 int app_traffic() {
