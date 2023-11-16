@@ -131,6 +131,10 @@ public:
         // #pragma omp parallel for num_threads(devices_.size())
         for (auto &gpuid : devices_) {
             // 每个GPU多个个instances，当下设置为2个
+            // for (int i = 0; i < instances_per_device_; ++i) {
+            //     infers_[gpuid].emplace_back(std::move(YoloGPUPtr::create_infer(
+            //         model_repository + "/yolov5n-traffic.INT8.B1.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
+            // }
             for (int i = 0; i < instances_per_device_; ++i) {
                 infers_[gpuid].emplace_back(std::move(YoloGPUPtr::create_infer(
                     model_repository + "/yolov5n-traffic.INT8.B1.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
@@ -156,7 +160,7 @@ public:
         return true;
     }
 
-    virtual void join() {
+    virtual void join() override {
         for (auto &t : ts_) {
             if (t.joinable())
                 t.join();

@@ -10,37 +10,60 @@
 #include "app_cuvid_intelligenttrafficsurveillance/intelligent_traffic.hpp"
 #include <string>
 #include "common/ilogger.hpp"
+#include <fstream>
+#include <map>
+// std::vector<std::ofstream> outFiles(1);
+// std::map<int, std::ofstream> outFiles;
 static void callback(int callbackType, void *img, char *data, int datalen) {
-    // INFO("data is %s.", data);
-    ;
+    // 这里采用calllbacktype 当做cameraid
+
+    std::ofstream outFile("output.txt", std::ios::app);
+    if (outFile.is_open()) {
+        // 将字符串写入文件
+        outFile << data << "\n";
+        outFile.close();
+    };
 }
 static void test_traffic() {
-    auto instance = Intelligent::create_intelligent_traffic(".", {0, 1, 2, 3}, 1);
+    auto instance = Intelligent::create_intelligent_traffic(".", {0}, 1);
     if (instance == nullptr) {
         INFO("create instance failed.");
         return;
     }
     instance->set_callback(callback);
     std::string raw_data =
-        R"({"cameraID":"1","uri":"rtsp://192.168.172.212/record/test1.mp4","events":[{"eventName":"nixing","enable":true,"rois":[{"roiName":"default nixing","pointsNum":4,"points":{"x1":0,"y1":0,"x2":1920,"y2":0,"x3":1920,"y3":1080,"x4":0,"y4":1080,"x5":0,"y5":0,"x6":0,"y6":0,"x7":0,"y7":0,"x8":0,"y8":0}}]},{"eventName":"xingrenchuangru","enable":true,"rois":[{"roiName":"default xingrenchuangru","pointsNum":4,"points":{"x1":0,"y1":0,"x2":1920,"y2":0,"x3":1920,"y3":1080,"x4":0,"y4":1080,"x5":0,"y5":0,"x6":0,"y6":0,"x7":0,"y7":0,"x8":0,"y8":0}}]},{"eventName":"feijidongche","enable":true,"rois":[{"roiName":"default feijidongche","pointsNum":4,"points":{"x1":0,"y1":0,"x2":1920,"y2":0,"x3":1920,"y3":1080,"x4":0,"y4":1080,"x5":0,"y5":0,"x6":0,"y6":0,"x7":0,"y7":0,"x8":0,"y8":0}}]},{"eventName":"biandao","enable":true,"rois":[{"roiName":"变道","pointsNum":2,"points":{"x1":477,"y1":368,"x2":701,"y2":870,"x3":0,"y3":0,"x4":0,"y4":0,"x5":0,"y5":0,"x6":0,"y6":0,"x7":0,"y7":0,"x8":0,"y8":0}}]},{"eventName":"weiting","enable":true,"rois":[{"roiName":"default weiting","pointsNum":4,"points":{"x1":0,"y1":0,"x2":1920,"y2":0,"x3":1920,"y3":1080,"x4":0,"y4":1080,"x5":0,"y5":0,"x6":0,"y6":0,"x7":0,"y7":0,"x8":0,"y8":0}}]},{"eventName":"yongdu","enable":true,"rois":[{"roiName":"default yongdu","pointsNum":4,"points":{"x1":0,"y1":0,"x2":1920,"y2":0,"x3":1920,"y3":1080,"x4":0,"y4":1080,"x5":0,"y5":0,"x6":0,"y6":0,"x7":0,"y7":0,"x8":0,"y8":0}}]}]})";
-
-    int num_views = 2;
+        R"({"cameraID":"3","uri":"/cangku_workspace/videos/200/ch0010_20230822T163634Z_20230822T171131Z_X01000002010000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})";
+    std::vector<std::string> raw_datas = {
+        R"({"cameraID":"3","uri":"/cangku_workspace/videos/200/ch0010_20230822T163634Z_20230822T171131Z_X01000002010000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        R"({"cameraID":"4","uri":"/cangku_workspace/videos/200/ch0010_20230822T171131Z_20230822T174631Z_X01000002020000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        R"({"cameraID":"8","uri":"/cangku_workspace/videos/400/ch0001_20230823T203718Z_20230823T210057Z_X03000001229000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        R"({"cameraID":"9","uri":"/cangku_workspace/videos/400/ch0001_20230823T210057Z_20230823T212437Z_X03000001243000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        R"({"cameraID":"10","uri":"/cangku_workspace/videos/400/ch0001_20230823T212437Z_20230823T214818Z_X03000001257000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        R"({"cameraID":"11","uri":"/cangku_workspace/videos/400/ch0001_20230823T214818Z_20230823T221158Z_X03000001270000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        R"({"cameraID":"12","uri":"/cangku_workspace/videos/400/ch0001_20230823T221158Z_20230823T223538Z_X03000001284000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        R"({"cameraID":"18","uri":"/cangku_workspace/videos/400/ch0002_20230823T174429Z_20230823T182041Z_X03000001131000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        R"({"cameraID":"24","uri":"/cangku_workspace/videos/400/ch0004_20230823T210226Z_20230823T212606Z_X03000001244000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})"};
+    int num_views = raw_datas.size();
 #pragma omp parallel for num_threads(num_views)
     for (int i = 0; i < num_views; ++i) {
-        auto replaced_string = iLogger::replace_string(raw_data, "1", std::to_string(i), 1);
-        // replaced_string      = iLogger::replace_string(replaced_string, "test1", "test" + std::to_string(i), 1);
-        auto success = instance->make_view(replaced_string);
+        // auto replaced_string = iLogger::replace_string(raw_data, "1", std::to_string(i), 1);
+        auto replaced_string = raw_datas[i];
+        auto success         = instance->make_view(replaced_string);
         while (!success) {
-            // INFO("failed to make_view[test%d] and retry", i);
+            INFO("failed to make_view[test%d] and retry", i);
             success = instance->make_view(replaced_string);
             iLogger::sleep(5000);
         }
     }
-    iLogger::sleep(10000000);
-    // instance->stop();
+    // iLogger::sleep(10000000);
+    instance->join();
 }
 
 int app_traffic() {
     test_traffic();
+    // if (outFile.is_open()) {
+    //     // 关闭文件
+    //     outFile.close();
+    // }
     return 0;
 }

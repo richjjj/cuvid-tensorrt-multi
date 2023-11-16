@@ -29,6 +29,8 @@ public:
     virtual void set_callback(ai_callback callback)                      = 0;
     // stop 所有视频流
     virtual void stop() = 0;
+    // 等待所有流完成
+    virtual void join() = 0;
     // 停止指定视频流，dis_uri 为rtsp流地址
     virtual void disconnect_view(const string& dis_uri) = 0;
     // 获取当前所有的视频流
@@ -36,5 +38,6 @@ public:
 };
 
 shared_ptr<IntelligentTraffic> create_intelligent_traffic(const string& model_repository,
-                                                          const vector<int> gpuids = {0, 1, 2, 3}, int instances_per_device = 2);
+                                                          const vector<int> gpuids = {0, 1, 2, 3},
+                                                          int instances_per_device = 2);
 };  // namespace Intelligent

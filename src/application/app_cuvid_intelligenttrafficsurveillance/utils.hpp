@@ -21,29 +21,15 @@ const double THRESHOLD = 5;  // 阈值
 
 bool isStopped(const vector<cv::Point2f>& coordinates) {
     int n = coordinates.size();
-    if (n < 60)
+    if (n < 100)
         return false;
 
     float dx = 0;
     float dy = 0;
-    // for (std::size_t i = 1; i < n; ++i) {
-    //     dx += fabs(coordinates[i].x - coordinates[i - 1].x);
-    //     dy += fabs(coordinates[i].y - coordinates[i - 1].y);
-    // }
-    dy = fabs(coordinates[0].y - coordinates[58].y);
+
+    dy = fabs(coordinates[0].y - coordinates[58].y) + fabs(coordinates[98].y - coordinates[58].y);
+    dx = fabs(coordinates[0].x - coordinates[58].x) + fabs(coordinates[98].x - coordinates[58].x);
     return dx < THRESHOLD && dy < THRESHOLD;
-
-    // int count = 0;
-    // for (int i = 0; i < n - 1; i++) {
-    //     if (velocities[i] < eps)
-    //         count++;
-    // }
-
-    // double ratio = (double)count / (double)(n - 1);
-    // if (ratio > 0.8)
-    //     return true;
-    // else
-    //     return false;
 }
 bool isStopped(const deque<cv::Point2f>& coordinates) {
     vector<cv::Point2f> v(coordinates.begin(), coordinates.end());
@@ -56,6 +42,26 @@ struct Line {
     cv::Point2f p1;
     cv::Point2f p2;
 };
+
+// 判断车辆逆行
+bool isRetrograde(const deque<cv::Point2f>& coordinates) {
+    auto length = coordinates.size();
+    if (length < 10)
+        return false;
+    float sum = 0;
+    int count = 0;
+    for (int i = length - 5; i < length; i++) {
+        auto y1 = coordinates[i].y;
+        auto y2 = coordinates[i + 1].y;
+        sum += y2 - y1;
+        count += 1;
+    }
+    if (sum > 5)  // 若为正则逆行
+    {
+        return true;
+    } else
+        return false;
+}
 
 // 判断车辆轨迹线段与给定线段是否相交
 bool isIntersect(const Line& line1, const Line& line2) {
@@ -77,21 +83,23 @@ bool isIntersect(const Line& line1, const deque<cv::Point2f>& coordinates) {
     vector<cv::Point2f> v(coordinates.begin(), coordinates.end());
     if (v.size() < 10)
         return false;
-    // 或者只判断最后两帧
     std::vector<Line> lines;
     for (int i = 0; i < coordinates.size() - 1; i++) {
         Line line;
-        line.p1 = coordinates[i];
+        line.p1 = coordinates[0];
         line.p2 = coordinates[i + 1];
         lines.push_back(line);
     }
 
     // 判断车辆轨迹线段是否与给定线段相交
+    int count = 0;
     for (int i = 0; i < lines.size() - 1; i++) {
         if (isIntersect(lines[i], line1)) {
-            return true;
+            count += 1;
         }
     }
+    if (count > 5)
+        return true;
     return false;
 }
 

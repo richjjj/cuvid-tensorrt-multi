@@ -21,6 +21,7 @@
 #include "common/ilogger.hpp"
 #include "utils.hpp"
 #include "track/bytetrack/BYTETracker.h"
+#include <fstream>
 
 namespace Intelligent {
 
@@ -35,15 +36,20 @@ ViewConfig parse_json_data(const string &raw_data) {
         EventConfig tmp_event;
         tmp_event.enable    = e["enable"];
         tmp_event.eventName = e["eventName"];
-        for (auto &roi : e["rois"]) {
-            RoiConfig tmp_roi;
-            tmp_roi.roiName   = roi["roiName"];
-            tmp_roi.pointsNum = roi["pointsNum"];
-            for (int i = 1; i < tmp_roi.pointsNum + 1; ++i) {
-                string p = to_string(i);
-                tmp_roi.points.emplace_back(roi["points"]["x" + p], roi["points"]["y" + p]);
+        if (e.find("rois") != e.end()) {
+            INFO("rois found in config.");
+            for (auto &roi : e["rois"]) {
+                RoiConfig tmp_roi;
+                tmp_roi.roiName   = roi["roiName"];
+                tmp_roi.pointsNum = roi["pointsNum"];
+                for (int i = 1; i < tmp_roi.pointsNum + 1; ++i) {
+                    string p = to_string(i);
+                    tmp_roi.points.emplace_back(roi["points"]["x" + p], roi["points"]["y" + p]);
+                }
+                tmp_event.rois.emplace_back(tmp_roi);
             }
-            tmp_event.rois.emplace_back(tmp_roi);
+        } else {
+            INFO("rois not found in config.Default is set to full image.");
         }
         tmp.events.emplace_back(tmp_event);
     }
@@ -137,9 +143,12 @@ public:
                 json events_json     = json::array();
                 auto t1              = iLogger::timestamp_now_float();
                 auto &image          = job.image;
-
-                // auto objs        = job.future_boxarray_.get();
-                auto &objs  = job.boxarray_;
+                auto &_objs          = job.boxarray_;
+                YoloGPUPtr::BoxArray objs;
+                for (auto &obj : _objs) {
+                    if (obj.class_label <= 7 && obj.bottom >= image.height / 3.0)
+                        objs.emplace_back(obj);
+                }
                 auto tracks = tracker_->update(det2tracks(objs));
                 auto t2     = iLogger::timestamp_now_float();
                 for (auto &e : config_.events) {
@@ -150,22 +159,35 @@ public:
                                 auto &track = tracks[t];
                                 auto &obj   = objs[track.detection_index];
                                 // car
-                                // if (obj.class_label == 2 && obj.confidence > 0.4) {
+                                // if ((obj.class_label >= 2 && obj.class_label <= 7) && obj.confidence > 0.4) {
                                 if (obj.class_label == 0 && obj.confidence > 0.4) {
                                     // 判断在哪个roi
-                                    for (auto &roi : e.rois) {
-                                        if (isPointInPolygon(roi.points, track.current_center_point_)) {
-                                            // 判断是否停住
-                                            bool stop = isStopped(track.center_points_.data_);
-                                            if (stop) {
-                                                json object_json = {
-                                                    {"objectID", track.track_id},
-                                                    {"label", 0},
-                                                    {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
-                                                    {"confidence", obj.confidence},
-                                                    {"roi_name", roi.roiName}};
-                                                objects_json.emplace_back(object_json);
-                                                break;
+                                    if (e.rois.empty()) {
+                                        bool stop = isStopped(track.center_points_.data_);
+                                        if (stop) {
+                                            json object_json = {
+                                                {"objectID", track.track_id},
+                                                {"label", 0},
+                                                {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                {"confidence", obj.confidence},
+                                                {"roi_name", "full_image"}};
+                                            objects_json.emplace_back(object_json);
+                                        }
+                                    } else {
+                                        for (auto &roi : e.rois) {
+                                            if (isPointInPolygon(roi.points, track.current_center_point_)) {
+                                                // 判断是否停住
+                                                bool stop = isStopped(track.center_points_.data_);
+                                                if (stop) {
+                                                    json object_json = {
+                                                        {"objectID", track.track_id},
+                                                        {"label", 0},
+                                                        {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                        {"confidence", obj.confidence},
+                                                        {"roi_name", roi.roiName}};
+                                                    objects_json.emplace_back(object_json);
+                                                    break;
+                                                }
                                             }
                                         }
                                     }
@@ -192,7 +214,7 @@ public:
                             }
                             // 判断是否拥堵
                             for (int i = 0; i < e.rois.size(); ++i) {
-                                bool jam = (car_count[i] >= 20);  // magic number
+                                bool jam = (car_count[i] >= 6);  // magic number
                                 // 判断在哪个roi
                                 if (jam) {
                                     json object_json = {
@@ -234,26 +256,69 @@ public:
                                 json event_json = {{"eventName", "biandao"}, {"objects", objects_json}};
                                 events_json.emplace_back(event_json);
                             }
+                        } else if (e.eventName == "nixing") {
+                            json objects_json = json::array();
+                            for (size_t t = 0; t < tracks.size(); t++) {
+                                auto &track = tracks[t];
+                                auto &obj   = objs[track.detection_index];
+                                // car
+                                if (obj.class_label == 0 && obj.confidence > 0.4) {
+                                    for (auto &roi : e.rois) {
+                                        // bool changeLine
+                                        Line l{roi.points[0], roi.points[1]};
+                                        bool nixing = isRetrograde(track.center_points_.data_);
+                                        // 判断在哪个roi
+                                        if (nixing) {
+                                            json object_json = {
+                                                {"objectID", track.track_id},
+                                                {"label", 0},
+                                                {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                {"confidence", obj.confidence},
+                                                {"roi_name", roi.roiName}};
+                                            objects_json.emplace_back(object_json);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            if (!objects_json.empty()) {
+                                json event_json = {{"eventName", "nixing"}, {"objects", objects_json}};
+                                events_json.emplace_back(event_json);
+                            }
                         } else if (e.eventName == "xingrenchuangru") {
                             json objects_json = json::array();
                             for (size_t t = 0; t < tracks.size(); t++) {
                                 auto &track = tracks[t];
                                 auto &obj   = objs[track.detection_index];
                                 // person
+                                // if (obj.class_label == 0 && obj.confidence > 0.6) {
                                 if (obj.class_label == 1 && obj.confidence > 0.6) {
-                                    for (auto &roi : e.rois) {
-                                        // 1. 判断行人是否在区域里 2. 需要有位移
-                                        if (isPointInPolygon(roi.points, track.current_center_point_)) {
-                                            float speed = speedOfTrack(track.center_points_.data_);
-                                            if (speed > 2 && speed < 100) {
-                                                json object_json = {
-                                                    {"objectID", track.track_id},
-                                                    {"label", 1},
-                                                    {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
-                                                    {"confidence", obj.confidence},
-                                                    {"roi_name", roi.roiName}};
-                                                objects_json.emplace_back(object_json);
-                                                break;
+                                    if (e.rois.empty()) {
+                                        float speed = speedOfTrack(track.center_points_.data_);
+                                        if (speed > 2 && speed < 100) {
+                                            json object_json = {
+                                                {"objectID", track.track_id},
+                                                {"label", 1},
+                                                {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                {"confidence", obj.confidence},
+                                                {"roi_name", "full_image"}};
+                                            objects_json.emplace_back(object_json);
+                                        }
+                                    } else {
+                                        for (auto &roi : e.rois) {
+                                            // 1. 判断行人是否在区域里 2. 需要有位移
+                                            if (isPointInPolygon(roi.points, track.current_center_point_)) {
+                                                float speed = speedOfTrack(track.center_points_.data_);
+                                                if (speed > 2 && speed < 100) {
+                                                    json object_json = {
+                                                        {"objectID", track.track_id},
+                                                        {"label", 1},
+                                                        {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                        {"confidence", obj.confidence},
+                                                        {"roi_name", roi.roiName}};
+                                                    objects_json.emplace_back(object_json);
+                                                    break;
+                                                }
                                             }
                                         }
                                     }
@@ -305,20 +370,27 @@ public:
                 // debug
                 // if (isPicture)
                 //     cv::imwrite(cv::format("imgs/%d.jpg", job.frame_index_), cvimage);
-                auto t4               = iLogger::timestamp_now_float();
-                tmp_json["isPicture"] = isPicture;
-                tmp_json["events"]    = events_json;
-                auto data             = tmp_json.dump();
-                bool isEmpty          = events_json.empty();
-                // if (!isEmpty)
-                //     INFO("data is %s.", data.c_str());
+                auto t4                 = iLogger::timestamp_now_float();
+                tmp_json["isPicture"]   = isPicture;
+                tmp_json["events"]      = events_json;
+                tmp_json["frame_index"] = job.frame_index_;
+                auto data               = tmp_json.dump();
+                bool isEmpty            = events_json.empty();
+                // if (!isEmpty) {
+                //     std::ofstream outFile(config_.cameraID + ".txt", std::ios::app);
+                //     if (outFile.is_open()) {
+                //         // 将字符串写入文件
+                //         outFile << data << "\n";
+                //         outFile.close();
+                //     };
+                // }
                 if (isPicture)
                     callback_(2, (void *)&cvimage, (char *)data.c_str(), data.size());
                 else
                     callback_(2, nullptr, (char *)data.c_str(), data.size());
                 auto t5 = iLogger::timestamp_now_float();
-                // INFO("total: %.2fms; image copy: %.2f ms; track: %.2f, event: %.2f; callback: %.2f", float(t5 - t1),
-                //      float(t4 - t3), float(t2 - t1), float(t3 - t2), float(t5 - t4));
+                INFO("total: %.2fms; image copy: %.2f ms; track: %.2f, event: %.2f; callback: %.2f", float(t5 - t1),
+                     float(t4 - t3), float(t2 - t1), float(t3 - t2), float(t5 - t4));
                 // reset
                 job.frame_index_ = 0;
             }
