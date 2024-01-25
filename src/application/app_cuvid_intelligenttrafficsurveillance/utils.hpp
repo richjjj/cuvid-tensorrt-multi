@@ -54,17 +54,18 @@ bool isRetrograde(const deque<cv::Point2f>& coordinates) {
     for (int i = length - 15; i < length; i++) {
         auto y1 = coordinates[i].y;
         auto y2 = coordinates[i + 1].y;
-        if (y1 < 500 || y2 < 500)  // 不考虑远处的
+        if (y1 < 1000 || y2 < 1000)  // 不考虑远处的
             continue;
         sum_x += (coordinates[i + 1].x - coordinates[i].x);
         sum += y2 - y1;
         count += 1;
     }
     float speed = sum / count;
-    INFO("逆行speed: %f", speed);
+    // INFO("逆行speed: %f", speed);
     if (speed > 25 & sum > 500 & sum_x < -100)  // 若为正则逆行
     {
-        return true;
+        return false;
+        // return true;
     } else
         return false;
 }
@@ -88,7 +89,7 @@ bool isIntersect(const Line& line1, const Line& line2) {
     }
     return false;
 }
-bool isIntersect(const Line& line1, const deque<cv::Point2f>& coordinates) {
+bool isIntersect(const Line& line1, const deque<cv::Point2f>& coordinates, int point_num = 5) {
     vector<cv::Point2f> v(coordinates.begin(), coordinates.end());
     if (v.size() < 15 || v.size() > 25)
         return false;
@@ -107,7 +108,7 @@ bool isIntersect(const Line& line1, const deque<cv::Point2f>& coordinates) {
             count += 1;
         }
     }
-    if (count > 5)
+    if (count > point_num)
         return true;
     return false;
 }

@@ -197,34 +197,89 @@ public:
                                 json event_json = {{"eventName", "weiting"}, {"objects", objects_json}};
                                 events_json.emplace_back(event_json);
                             }
-                        } else if (e.eventName == "yongdu") {
+                        } else if (e.eventName == "yingji") {
                             json objects_json = json::array();
-                            vector<int> car_count(e.rois.size(), 0);
                             for (size_t t = 0; t < tracks.size(); t++) {
                                 auto &track = tracks[t];
                                 auto &obj   = objs[track.detection_index];
                                 // car
-                                if (obj.class_label == 0) {
-                                    for (int i = 0; i < e.rois.size(); ++i) {
-                                        if (isPointInPolygon(e.rois[i].points, track.current_center_point_)) {
-                                            ++car_count[i];
+                                // if ((obj.class_label >= 2 && obj.class_label <= 7) && obj.confidence > 0.4) {
+                                if (obj.class_label == 0 && obj.confidence > 0.4) {
+                                    // 判断在哪个roi
+                                    if (e.rois.empty()) {
+                                        bool stop = isStopped(track.center_points_.data_);
+                                        if (stop) {
+                                            json object_json = {
+                                                {"objectID", track.track_id},
+                                                {"label", 0},
+                                                {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                {"confidence", obj.confidence},
+                                                {"roi_name", "full_image"}};
+                                            objects_json.emplace_back(object_json);
+                                        }
+                                    } else {
+                                        for (auto &roi : e.rois) {
+                                            if (isPointInPolygon(roi.points, track.current_center_point_)) {
+                                                // 判断是否停住
+                                                bool stop = isStopped(track.center_points_.data_);
+                                                if (stop) {
+                                                    json object_json = {
+                                                        {"objectID", track.track_id},
+                                                        {"label", 0},
+                                                        {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                        {"confidence", obj.confidence},
+                                                        {"roi_name", roi.roiName}};
+                                                    objects_json.emplace_back(object_json);
+                                                    break;
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
+                            if (!objects_json.empty()) {
+                                json event_json = {{"eventName", "yingji"}, {"objects", objects_json}};
+                                events_json.emplace_back(event_json);
+                            }
+                        } else if (e.eventName == "yongdu") {
+                            json objects_json = json::array();
+
                             // 判断是否拥堵
-                            for (int i = 0; i < e.rois.size(); ++i) {
-                                bool jam = (car_count[i] >= 6);  // magic number
-                                // 判断在哪个roi
-                                if (jam) {
+                            for (auto &roi : e.rois) {
+                                int car_count         = 0;
+                                int car_stopped_count = 0;
+                                float confidence_sum  = 0.;
+                                for (size_t t = 0; t < tracks.size(); t++) {
+                                    auto &track = tracks[t];
+                                    auto &obj   = objs[track.detection_index];
+                                    // car
+
+                                    if (obj.class_label == 0 &&
+                                        isPointInPolygon(roi.points, cv::Point((obj.left + obj.right) / 2,
+                                                                               (obj.top + obj.bottom) / 2))) {
+                                        car_count++;
+                                        confidence_sum += obj.confidence;
+                                        if (isStopped(track.center_points_.data_)) {
+                                            car_stopped_count++;
+                                        }
+                                    }
+                                }
+                                if (car_count >= 8 || car_stopped_count >= 2) {
                                     json object_json = {
-                                        {"roi", e.rois[i].roiName},
+                                        {"objectID", car_count},
+                                        {"label", 0},
+                                        {"roi_name", roi.roiName},
+                                        {"coordinate", {roi.points[0].x, roi.points[0].y, roi.points[2].x, roi.points[2].y}},
+                                        {"confidence", 1.0},
+                                        //{"confidence", confidence_sum / car_count},
                                     };
                                     objects_json.emplace_back(object_json);
                                 }
                             }
+
                             if (!objects_json.empty()) {
                                 json event_json = {{"eventName", "yongdu"}, {"objects", objects_json}};
+                                INFO("yongdu: %s", event_json.dump().c_str());
                                 events_json.emplace_back(event_json);
                             }
                         } else if (e.eventName == "biandao") {
@@ -237,7 +292,7 @@ public:
                                     for (auto &roi : e.rois) {
                                         // bool changeLine
                                         Line l{roi.points[0], roi.points[1]};
-                                        bool changeLine = isIntersect(l, track.center_points_.data_);
+                                        bool changeLine = isIntersect(l, track.center_points_.data_, 12);
                                         // 判断在哪个roi
                                         if (changeLine) {
                                             json object_json = {
@@ -256,7 +311,7 @@ public:
                                 json event_json = {{"eventName", "biandao"}, {"objects", objects_json}};
                                 events_json.emplace_back(event_json);
                             }
-                        } else if (e.eventName == "nixing") {
+                        } else if (e.eventName == "yaxian") {
                             json objects_json = json::array();
                             for (size_t t = 0; t < tracks.size(); t++) {
                                 auto &track = tracks[t];
@@ -266,6 +321,35 @@ public:
                                     for (auto &roi : e.rois) {
                                         // bool changeLine
                                         Line l{roi.points[0], roi.points[1]};
+                                        bool changeLine = isIntersect(l, track.center_points_.data_, 7);
+                                        // 判断在哪个roi
+                                        if (changeLine) {
+                                            json object_json = {
+                                                {"objectID", track.track_id},
+                                                {"label", 0},
+                                                {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
+                                                {"confidence", obj.confidence},
+                                                {"roi_name", roi.roiName}};
+                                            objects_json.emplace_back(object_json);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            if (!objects_json.empty()) {
+                                json event_json = {{"eventName", "yaxian"}, {"objects", objects_json}};
+                                events_json.emplace_back(event_json);
+                            }
+                        } else if (e.eventName == "nixing") {
+                            json objects_json = json::array();
+                            for (size_t t = 0; t < tracks.size(); t++) {
+                                auto &track = tracks[t];
+                                auto &obj   = objs[track.detection_index];
+                                // car
+                                if (obj.class_label == 0 && obj.confidence > 0.4) {
+                                    for (auto &roi : e.rois) {
+                                        // bool changeLine
+                                        // Line l{roi.points[0], roi.points[1]};
                                         bool nixing = isRetrograde(track.center_points_.data_);
                                         // 判断在哪个roi
                                         if (nixing) {
@@ -292,7 +376,7 @@ public:
                                 auto &obj   = objs[track.detection_index];
                                 // person
                                 // if (obj.class_label == 0 && obj.confidence > 0.6) {
-                                if (obj.class_label == 1 && obj.confidence > 0.6) {
+                                if (obj.class_label == 1 && obj.confidence > 0.8) {
                                     if (e.rois.empty()) {
                                         float speed = speedOfTrack(track.center_points_.data_);
                                         if (speed > 2 && speed < 100) {
@@ -335,7 +419,7 @@ public:
                                 auto &obj   = objs[track.detection_index];
                                 // person
                                 // if (obj.class_label == 0 && obj.confidence > 0.6) {
-                                if (obj.class_label == 2 && obj.confidence > 0.3) {
+                                if (obj.class_label == 2 && obj.confidence > 0.85) {
                                     if (e.rois.empty()) {
                                         json object_json = {{"objectID", track.track_id},
                                                             {"label", 2},
@@ -370,7 +454,7 @@ public:
                             for (size_t t = 0; t < objs.size(); t++) {
                                 auto &obj = objs[t];
                                 // psw
-                                if (obj.class_label == 3 && obj.confidence > 0.6) {
+                                if (obj.class_label == 3 && obj.confidence > 0.9) {
                                     if (e.rois.empty()) {
                                         json object_json = {{"objectID", 0},
                                                             {"label", 3},
@@ -462,7 +546,8 @@ public:
                 else
                     callback_(2, nullptr, (char *)data.c_str(), data.size());
                 auto t5 = iLogger::timestamp_now_float();
-                // INFO("total: %.2fms; image copy: %.2f ms; track: %.2f, event: %.2f; callback: %.2f", float(t5 - t1),
+                // INFO("total: %.2fms; image copy: %.2f ms; track: %.2f, event: %.2f; callback: %.2f", float(t5 -
+                // t1),
                 //      float(t4 - t3), float(t2 - t1), float(t3 - t2), float(t5 - t4));
                 // reset
                 job.frame_index_ = 0;

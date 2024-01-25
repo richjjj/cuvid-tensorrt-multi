@@ -144,7 +144,7 @@ public:
             // }
             for (int i = 0; i < instances_per_device_; ++i) {
                 infers_[gpuid].emplace_back(std::move(YoloGPUPtr::create_infer(
-                    model_repository + "/yolov5n-traffic.INT8.B1.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
+                    model_repository + "/yolov5n-traffic-20231121.INT8.B1.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
                 infers_psw_[gpuid].emplace_back(std::move(YoloGPUPtr::create_infer(
                     model_repository + "/yolov5n-psw.FP32.B1.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
             }
