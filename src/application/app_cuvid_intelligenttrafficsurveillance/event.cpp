@@ -221,7 +221,9 @@ public:
                                         for (auto &roi : e.rois) {
                                             if (isPointInPolygon(roi.points, track.current_center_point_)) {
                                                 // 判断是否停住
-                                                bool stop = isStopped(track.center_points_.data_);
+                                                bool stop =
+                                                    isStopped(track.center_points_.data_) &&
+                                                    (obj.top + obj.bottom) / 2 < (image.height * 2 / 3);  // 停在上方
                                                 if (stop) {
                                                     json object_json = {
                                                         {"objectID", track.track_id},
@@ -292,7 +294,7 @@ public:
                                     for (auto &roi : e.rois) {
                                         // bool changeLine
                                         Line l{roi.points[0], roi.points[1]};
-                                        bool changeLine = isIntersect(l, track.center_points_.data_, 12);
+                                        bool changeLine = isIntersect(l, track.center_points_.data_, 7);
                                         // 判断在哪个roi
                                         if (changeLine) {
                                             json object_json = {
@@ -321,7 +323,7 @@ public:
                                     for (auto &roi : e.rois) {
                                         // bool changeLine
                                         Line l{roi.points[0], roi.points[1]};
-                                        bool changeLine = isIntersect(l, track.center_points_.data_, 7);
+                                        bool changeLine = isIntersect(l, track.center_points_.data_, 5);
                                         // 判断在哪个roi
                                         if (changeLine) {
                                             json object_json = {

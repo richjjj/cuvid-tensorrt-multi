@@ -91,7 +91,7 @@ bool isIntersect(const Line& line1, const Line& line2) {
 }
 bool isIntersect(const Line& line1, const deque<cv::Point2f>& coordinates, int point_num = 5) {
     vector<cv::Point2f> v(coordinates.begin(), coordinates.end());
-    if (v.size() < 15 || v.size() > 25)
+    if (v.size() < 15 || v.size() > 35)
         return false;
     std::vector<Line> lines;
     for (int i = 5; i < coordinates.size() - 1; i++) {
