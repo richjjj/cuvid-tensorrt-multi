@@ -160,7 +160,9 @@ public:
                                 auto &obj   = objs[track.detection_index];
                                 // car
                                 // if ((obj.class_label >= 2 && obj.class_label <= 7) && obj.confidence > 0.4) {
-                                if (obj.class_label == 0 && obj.confidence > 0.4) {
+                                if (obj.class_label == 0 && obj.confidence > 0.4 && obj.bottom < image.height / 2.0 &&
+                                    obj.left > image.width / 2.0 &&
+                                    (obj.bottom - obj.top) < 1.2 * (obj.right - obj.left)) {
                                     // 判断在哪个roi
                                     if (e.rois.empty()) {
                                         bool stop = isStopped(track.center_points_.data_);

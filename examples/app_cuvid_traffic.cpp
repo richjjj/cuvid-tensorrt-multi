@@ -16,7 +16,7 @@
 // std::map<int, std::ofstream> outFiles;
 static void callback(int callbackType, void *img, char *data, int datalen) {
     // 这里采用calllbacktype 当做cameraid
-
+    return;
     std::ofstream outFile("output.txt", std::ios::app);
     if (outFile.is_open()) {
         // 将字符串写入文件
@@ -32,17 +32,18 @@ static void test_traffic() {
     }
     instance->set_callback(callback);
     std::string raw_data =
-        R"({"cameraID":"3","uri":"/cangku_workspace/videos/200/ch0010_20230822T163634Z_20230822T171131Z_X01000002010000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})";
+        R"({"cameraID":"3","uri":"/cangku_workspace/videos/1_3.16.weiting.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})";
     std::vector<std::string> raw_datas = {
-        R"({"cameraID":"3","uri":"/cangku_workspace/videos/200/ch0010_20230822T163634Z_20230822T171131Z_X01000002010000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
-        R"({"cameraID":"4","uri":"/cangku_workspace/videos/200/ch0010_20230822T171131Z_20230822T174631Z_X01000002020000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
-        R"({"cameraID":"8","uri":"/cangku_workspace/videos/400/ch0001_20230823T203718Z_20230823T210057Z_X03000001229000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
-        R"({"cameraID":"9","uri":"/cangku_workspace/videos/400/ch0001_20230823T210057Z_20230823T212437Z_X03000001243000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
-        R"({"cameraID":"10","uri":"/cangku_workspace/videos/400/ch0001_20230823T212437Z_20230823T214818Z_X03000001257000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
-        R"({"cameraID":"11","uri":"/cangku_workspace/videos/400/ch0001_20230823T214818Z_20230823T221158Z_X03000001270000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
-        R"({"cameraID":"12","uri":"/cangku_workspace/videos/400/ch0001_20230823T221158Z_20230823T223538Z_X03000001284000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
-        R"({"cameraID":"18","uri":"/cangku_workspace/videos/400/ch0002_20230823T174429Z_20230823T182041Z_X03000001131000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
-        R"({"cameraID":"24","uri":"/cangku_workspace/videos/400/ch0004_20230823T210226Z_20230823T212606Z_X03000001244000000.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"xingrenchuangru","enable":true}]})"};
+        // R"({"cameraID":"1","uri":"/cangku_workspace/videos/1_3.16.weiting.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"feijidongche","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        // R"({"cameraID":"2","uri":"/cangku_workspace/videos/2_3.6.weiting.xingren.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"feijidongche","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        // R"({"cameraID":"3","uri":"/cangku_workspace/videos/3_3.20.motuoche.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"feijidongche","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        // R"({"cameraID":"4","uri":"/cangku_workspace/videos/4_3.21.xingren.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"feijidongche","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        // R"({"cameraID":"5","uri":"/cangku_workspace/videos/5_3.22.xingren.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"feijidongche","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        R"({"cameraID":"6","uri":"/cangku_workspace/videos/6_A34.motuoche.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"feijidongche","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        // R"({"cameraID":"7","uri":"/cangku_workspace/videos/7_3.17.weiting.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"feijidongche","enable":true},{"eventName":"xingrenchuangru","enable":true}]})",
+        // R"({"cameraID":"8","uri":"/cangku_workspace/videos/8_3.17.weiting.xingren.mp4","events":[{"eventName":"weiting","enable":true},{"eventName":"feijidongche","enable":true},{"eventName":"xingrenchuangru","enable":true}]})"
+
+    };
     int num_views = raw_datas.size();
 #pragma omp parallel for num_threads(num_views)
     for (int i = 0; i < num_views; ++i) {
@@ -55,7 +56,7 @@ static void test_traffic() {
             iLogger::sleep(5000);
         }
     }
-    // iLogger::sleep(10000000);
+    iLogger::sleep(10000000);
     // instance->join();
 }
 

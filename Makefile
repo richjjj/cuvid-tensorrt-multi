@@ -137,6 +137,8 @@ traffic : $(example)
 	@cd $(workdir) && ./$(example) traffic
 test: $(example)
 	@cd $(workdir) && ./$(example) test
+cuda: $(example)
+	@cd $(workdir) && ./$(example) cuda
 $(workdir)/$(name) : $(cpp_objs) $(cu_objs)
 	@echo Link $@
 	@mkdir -p $(dir $@)

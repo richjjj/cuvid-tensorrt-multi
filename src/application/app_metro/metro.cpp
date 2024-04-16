@@ -7,7 +7,7 @@
  * LastEditors: zhongchong
  * LastEditTime: 2023-02-15 11:17:03
  *************************************************************************************/
-#include "intelligent_traffic.hpp"
+#include "metro.hpp"
 #include "app_yolo_gpuptr/yolo_gpuptr.hpp"
 
 #include "common/cuda_tools.hpp"
@@ -16,12 +16,12 @@
 #include "ffhdd/ffmpeg-demuxer.hpp"
 #include "event.hpp"
 
-namespace Intelligent {
+namespace metro {
 using namespace std;
 
-class IntelligentTrafficImpl : public IntelligentTraffic {
+class SolutionImpl : public Solution {
 public:
-    IntelligentTrafficImpl() {}
+    SolutionImpl() {}
     virtual bool make_view(const string &raw_data, size_t timeout) override {
         if (callback_ == nullptr) {
             INFOE("please set_callback befor make_view.");
@@ -33,7 +33,7 @@ public:
         event_infer->set_callback(callback_);
         string uri     = event_infer->get_uri();
         runnings_[uri] = true;
-        ts_.emplace_back(thread(&IntelligentTrafficImpl::worker, this, uri, event_infer, ref(pro)));
+        ts_.emplace_back(thread(&SolutionImpl::worker, this, uri, event_infer, ref(pro)));
         bool state = pro.get_future().get();
         if (state) {
             uris_.emplace_back(uri);
@@ -103,13 +103,7 @@ public:
                     auto objs_future = infers_[gpu_id][instance_id]->commit(image);
 
                     auto objs = objs_future.get();
-                    if (frame_index % 250 == 0) {  // 每10秒识别一次
-                        auto objs_psw = infers_psw_[gpu_id][instance_id]->commit(image).get();
-                        for (auto &obj : objs_psw) {
-                            obj.class_label += 3;  // 在traffic基础上+3
-                            objs.emplace_back(obj);
-                        }
-                    }
+
                     auto t2 = iLogger::timestamp_now_float();
                     event_infer->commit({frame_index, image, objs});
                     auto t3 = iLogger::timestamp_now_float();
@@ -143,19 +137,14 @@ public:
             //         model_repository + "/yolov5n-traffic.INT8.B1.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
             // }
             for (int i = 0; i < instances_per_device_; ++i) {
-                infers_[gpuid].emplace_back(
-                    std::move(YoloGPUPtr::create_infer(model_repository + "/yolov5n-traffic-20231121.INT8.B1.trtmodel",
-                                                       YoloGPUPtr::Type::V5, gpuid, 0.5)));
-                infers_psw_[gpuid].emplace_back(std::move(YoloGPUPtr::create_infer(
-                    model_repository + "/yolov5n-psw.FP32.B1.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
+                infers_[gpuid].emplace_back(std::move(
+                    YoloGPUPtr::create_infer(model_repository + "/anjian_baojie_head_v8s_20240327.transd.fp16.trtmodel",
+                                             YoloGPUPtr::Type::V8, gpuid, 0.5)));
             }
             INFO("instance.size()=%d", infers_[gpuid].size());
             for (int i = 0; i < 20; ++i) {
                 // warm up
                 for (auto &infer : infers_[gpuid]) {
-                    infer->commit(cv::Mat(640, 640, CV_8UC3)).get();
-                }
-                for (auto &infer : infers_psw_[gpuid]) {
                     infer->commit(cv::Mat(640, 640, CV_8UC3)).get();
                 }
             }
@@ -189,7 +178,7 @@ public:
     virtual void disconnect_view(const string &dis_uri) override {
         runnings_[dis_uri] = false;
     }
-    virtual ~IntelligentTrafficImpl() {
+    virtual ~SolutionImpl() {
         stop();
         INFO("Traffic done.");
     }
@@ -205,32 +194,43 @@ private:
     // vector<shared_ptr<YoloGPUPtr::Infer>> infers_;
     int instances_per_device_{1};
     map<unsigned int, vector<shared_ptr<YoloGPUPtr::Infer>>> infers_;
-    map<unsigned int, vector<shared_ptr<YoloGPUPtr::Infer>>> infers_psw_;  // 抛洒物
     atomic<int> device_count_map_[4];
     atomic<unsigned int> thread_id_{0};
     atomic<unsigned int> cursor_{0};
 };
-shared_ptr<IntelligentTraffic> create_intelligent_traffic(const string &model_repository, const vector<int> gpuids,
-                                                          int instances_per_device) {
+shared_ptr<Solution> create_intelligent_traffic(const string &model_repository, const vector<int> gpuids,
+                                                int instances_per_device) {
     // iLogger::set_logger_save_directory("/tmp/intelligent_traffic");
-    shared_ptr<IntelligentTrafficImpl> instance(new IntelligentTrafficImpl());
+    shared_ptr<SolutionImpl> instance(new SolutionImpl());
     if (!instance->startup(model_repository, gpuids, instances_per_device)) {
         instance.reset();
     }
     return instance;
 }
-};  // namespace Intelligent
+};  // namespace metro
 
-// void convert_GPUImage_to_CPUImage(void *gpu_ptr, uchar *cpu_ptr, int &image_height, int &image_width) {
-//     YoloGPUPtr::Image *convertedImgPtr = reinterpret_cast<YoloGPUPtr::Image *>(gpu_ptr);
-//     if (convertedImgPtr != nullptr) {
-//         image_height = convertedImgPtr->get_height();
-//         image_width  = convertedImgPtr->get_width();
-//         cudaMemcpyAsync(cpu_ptr, convertedImgPtr->device_data, convertedImgPtr->get_data_size(),
-//         cudaMemcpyDeviceToHost,
-//                         convertedImgPtr->stream);
-//         cudaStreamSynchronize(convertedImgPtr->stream);
-//     } else {
-//         return;
-//     }
-// }
+// 分配device内存的接口
+void f1(void **gpu_ptr, size_t count) {
+    cudaMalloc(gpu_ptr, count);
+}
+// 拷贝device数据的接口
+void f2(void *gpu_src, void *gpu_dst, size_t count) {
+    cudaMemcpy(gpu_dst, gpu_src, count, cudaMemcpyDeviceToDevice);
+}
+// device to host
+void f3(void *gpu_src, void *cpu_dst, size_t count) {
+    cudaMemcpy(cpu_dst, gpu_src, count, cudaMemcpyDeviceToHost);
+}
+
+void convert_GPUImage_to_CPUImage(void *gpu_ptr, uchar *cpu_ptr, int &image_height, int &image_width) {
+    YoloGPUPtr::Image *convertedImgPtr = reinterpret_cast<YoloGPUPtr::Image *>(gpu_ptr);
+    if (convertedImgPtr != nullptr) {
+        image_height = convertedImgPtr->get_height();
+        image_width  = convertedImgPtr->get_width();
+        cudaMemcpyAsync(cpu_ptr, convertedImgPtr->device_data, convertedImgPtr->get_data_size(), cudaMemcpyDeviceToHost,
+                        convertedImgPtr->stream);
+        cudaStreamSynchronize(convertedImgPtr->stream);
+    } else {
+        return;
+    }
+}
