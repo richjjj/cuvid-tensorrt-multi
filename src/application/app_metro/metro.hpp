@@ -13,6 +13,7 @@ class Image;
 typedef YoloGPUPtr::Image* GPUImage_ptr;
 
 // 分配device内存的接口
+// count - Size in bytes to copy
 void f1(void** gpu_ptr, size_t count);
 // 拷贝device数据的接口
 void f2(void* gpu_src, void* gpu_dst, size_t count);
