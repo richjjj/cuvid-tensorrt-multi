@@ -7,6 +7,7 @@
 #include <iostream>
 #include <chrono>
 
+#include "app_metro/metro.hpp"
 #define checkRuntime(op) __check_cuda_runtime((op), #op, __FILE__, __LINE__)
 
 bool __check_cuda_runtime(cudaError_t code, const char* op, const char* file, int line) {
@@ -62,13 +63,13 @@ void checkCpuMemcpyTime(int* src, int* dst, int size) {
     std::cout << "CPU Memcpy time: " << duration.count() << " milliseconds\n";
 }
 
+// __global__ void setValueToMemory(int* data, int value, int size) {
+//     int tid = blockIdx.x * blockDim.x + threadIdx.x;
+//     if (tid < size) {
+//         data[tid] = value;
+//     }
+// }
 int app_cuda() {
-    int device_id = 0;
-    checkRuntime(cudaSetDevice(device_id));
-
-    cudaStream_t stream = nullptr;
-    checkRuntime(cudaStreamCreate(&stream));
-
     // 测试耗时
     // int N    = 1 << 20;  // Number of elements
     int N    = 3 * 1920 * 1080;
@@ -106,6 +107,37 @@ int app_cuda() {
     free(h_src);
     free(h_dst);
     // end
+
+    // 测试 f1 f2 f3
+    // 分配内存
+    f1((void**)&d_src, size);
+    f1((void**)&d_dst, size);
+
+    // 赋值，用来测试结果是否正确
+    // int threadsPerBlock = 256;
+    // int blocksPerGrid   = (size + threadsPerBlock - 1) / threadsPerBlock;
+    // // 调用CUDA核函数
+    // int value = 88;
+    // setValueToMemory<<<blocksPerGrid, threadsPerBlock>>>(d_src, value, N);
+    cudaMemset(d_src, -1, size);
+
+    // device -> device
+    f2(d_src, d_dst, size);
+
+    // Allocate memory on host
+    int* h_dst_test = (int*)malloc(size);
+
+    // device -> host
+    f3(d_dst, h_dst_test, size);
+    printf("%d  %d\n", h_dst_test[1], h_dst_test[77]);
+    free(h_dst_test);
+    // end
+
+    int device_id = 0;
+    checkRuntime(cudaSetDevice(device_id));
+
+    cudaStream_t stream = nullptr;
+    checkRuntime(cudaStreamCreate(&stream));
 
     // 在GPU上开辟空间
     float* memory_device = nullptr;

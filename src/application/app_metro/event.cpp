@@ -319,7 +319,7 @@ public:
                 bool isEmpty             = events_json.empty();
                 void *void_ptr           = reinterpret_cast<void *>(&image);
                 if (isPicture)
-                    callback_(2, void_ptr, (char *)data.c_str(), data.size());
+                    callback_(2, image.device_data, (char *)data.c_str(), data.size());
                 else
                     callback_(2, nullptr, (char *)data.c_str(), data.size());
                 auto t5 = iLogger::timestamp_now_float();
