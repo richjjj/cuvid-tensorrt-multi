@@ -19,6 +19,7 @@ typedef enum {
 ///////////////////////////////////////////////////////////////
 typedef void (*CallBackDataInfo)(int callbackType, void *img, char *data, int datalen);
 typedef void (*MessageCallBackDataInfo)(int callbackType, void *img, char *data, int datalen);
+typedef void (*AiCallBackDataInfo)(int callbackType, void *img, char *data, int datalen, int w, int h);
 
 #ifdef __cplusplus
 }

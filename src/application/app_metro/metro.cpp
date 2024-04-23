@@ -198,8 +198,8 @@ private:
     atomic<unsigned int> thread_id_{0};
     atomic<unsigned int> cursor_{0};
 };
-shared_ptr<Solution> create_intelligent_traffic(const string &model_repository, const vector<int> gpuids,
-                                                int instances_per_device) {
+shared_ptr<Solution> create_solution(const string &model_repository, const vector<int> gpuids,
+                                     int instances_per_device) {
     // iLogger::set_logger_save_directory("/tmp/intelligent_traffic");
     shared_ptr<SolutionImpl> instance(new SolutionImpl());
     if (!instance->startup(model_repository, gpuids, instances_per_device)) {

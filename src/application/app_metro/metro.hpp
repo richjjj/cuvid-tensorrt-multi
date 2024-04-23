@@ -28,7 +28,7 @@ void convert_GPUImage_to_CPUImage(void* gpu_ptr, unsigned char* cpu_ptr, int& im
 namespace metro {
 using namespace std;
 
-using ai_callback = MessageCallBackDataInfo;
+using ai_callback = AiCallBackDataInfo;
 
 class Solution {
 public:

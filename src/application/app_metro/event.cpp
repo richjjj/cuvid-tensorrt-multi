@@ -309,19 +309,19 @@ public:
                 // debug
                 // if (isPicture)
                 //     cv::imwrite(cv::format("imgs/%d.jpg", job.frame_index_), cvimage);
-                auto t4                  = iLogger::timestamp_now_float();
-                tmp_json["isPicture"]    = isPicture;
-                tmp_json["events"]       = events_json;
-                tmp_json["frame_index"]  = job.frame_index_;
-                tmp_json["image_height"] = image.get_height();
-                tmp_json["image_width"]  = image.get_width();
-                auto data                = tmp_json.dump();
-                bool isEmpty             = events_json.empty();
-                void *void_ptr           = reinterpret_cast<void *>(&image);
+                auto t4                 = iLogger::timestamp_now_float();
+                tmp_json["isPicture"]   = isPicture;
+                tmp_json["events"]      = events_json;
+                tmp_json["frame_index"] = job.frame_index_;
+                int image_height        = image.get_height();
+                int image_width         = image.get_width();
+                auto data               = tmp_json.dump();
+                bool isEmpty            = events_json.empty();
+                void *void_ptr          = reinterpret_cast<void *>(&image);
                 if (isPicture)
-                    callback_(2, image.device_data, (char *)data.c_str(), data.size());
+                    callback_(2, image.device_data, (char *)data.c_str(), data.size(), image_width, image_height);
                 else
-                    callback_(2, nullptr, (char *)data.c_str(), data.size());
+                    callback_(2, nullptr, (char *)data.c_str(), data.size(), image_width, image_height);
                 auto t5 = iLogger::timestamp_now_float();
                 // INFO("total: %.2fms; image copy: %.2f ms; track: %.2f, event: %.2f; callback: %.2f", float(t5 -
                 // t1),

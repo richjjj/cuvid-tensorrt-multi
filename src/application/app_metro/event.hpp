@@ -35,7 +35,7 @@ struct Input {
     YoloGPUPtr::Image image;
     YoloGPUPtr::BoxArray boxarray_;
 };
-using ai_callback = MessageCallBackDataInfo;
+using ai_callback = AiCallBackDataInfo;
 
 class EventInfer {
 public:
