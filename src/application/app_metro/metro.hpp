@@ -12,9 +12,13 @@ class Image;
 };
 typedef YoloGPUPtr::Image* GPUImage_ptr;
 
+// 显式设置deviceId
+void setDeviceId(int device = 0);
 // 分配device内存的接口
 // count - Size in bytes to copy
 void f1(void** gpu_ptr, size_t count);
+// 释放device 内存
+void releaseDeviceMemory(void* gpu_ptr);
 // 拷贝device数据的接口
 void f2(void* gpu_src, void* gpu_dst, size_t count);
 // device to host
