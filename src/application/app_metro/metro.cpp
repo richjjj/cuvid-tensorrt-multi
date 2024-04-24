@@ -135,9 +135,8 @@ public:
         // #pragma omp parallel for num_threads(devices_.size())
         for (auto &gpuid : devices_) {
             for (int i = 0; i < instances_per_device_; ++i) {
-                infers_[gpuid].emplace_back(
-                    std::move(YoloGPUPtr::create_infer(model_repository + "/yolov5n-traffic-20231121.INT8.B1.trtmodel",
-                                                       YoloGPUPtr::Type::V5, gpuid, 0.5)));
+                infers_[gpuid].emplace_back(std::move(YoloGPUPtr::create_infer(
+                    model_repository + "/yolov5s_ditie3.FP16.B1.trtmodel", YoloGPUPtr::Type::V5, gpuid, 0.5)));
             }
             INFO("instance.size()=%d", infers_[gpuid].size());
             for (int i = 0; i < 20; ++i) {

@@ -212,9 +212,9 @@ public:
         TRT::Tensor output_array_device(TRT::DataType::Float);
         int max_batch_size = engine->get_max_batch_size();
         auto input         = engine->input(0);
-        auto output        = engine->output(0);
+        // auto output        = engine->output(0);
         // auto input         = engine->tensor("images");
-        // auto output        = engine->tensor("output");
+        auto output     = engine->tensor("output");
         int num_classes = output->size(2) - 5;
         if (type_ == Type::V8)
             num_classes = output->size(2) - 4;
