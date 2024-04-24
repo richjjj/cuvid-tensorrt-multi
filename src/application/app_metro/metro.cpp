@@ -210,11 +210,12 @@ shared_ptr<Solution> create_solution(const string &model_repository, const vecto
 };  // namespace metro
 
 // 显式设置deviceId
-void setDeviceId(int device) {
-    cudaSetDevice(device);
-}
+// void setDeviceId(int device) {
+//     cudaSetDevice(device);
+// }
 // 分配device内存的接口
-void f1(void **gpu_ptr, size_t count) {
+void f1(void **gpu_ptr, size_t count, int device) {
+    cudaSetDevice(device);
     cudaMalloc(gpu_ptr, count);
 }
 // 释放device 内存
