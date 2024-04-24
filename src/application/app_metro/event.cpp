@@ -315,13 +315,15 @@ public:
                 tmp_json["frame_index"] = job.frame_index_;
                 int image_height        = image.get_height();
                 int image_width         = image.get_width();
+                int device              = image.device_id;
                 auto data               = tmp_json.dump();
                 bool isEmpty            = events_json.empty();
                 void *void_ptr          = reinterpret_cast<void *>(&image);
                 if (isPicture)
-                    callback_(2, image.device_data, (char *)data.c_str(), data.size(), image_width, image_height);
+                    callback_(2, image.device_data, (char *)data.c_str(), data.size(), image_width, image_height,
+                              device);
                 else
-                    callback_(2, nullptr, (char *)data.c_str(), data.size(), image_width, image_height);
+                    callback_(2, nullptr, (char *)data.c_str(), data.size(), image_width, image_height, device);
                 auto t5 = iLogger::timestamp_now_float();
                 // INFO("total: %.2fms; image copy: %.2f ms; track: %.2f, event: %.2f; callback: %.2f", float(t5 -
                 // t1),
