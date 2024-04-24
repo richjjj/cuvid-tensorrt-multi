@@ -48,3 +48,7 @@ yolov7_qat_640,YoloV7,INT8,4.866992
 yolov7_qat_640,YoloV7,INT8,4.811226
 yolov5n-psw,YoloV5,FP32,2.449132
 yolov5n-traffic-20231121,YoloV5,INT8,1.308305
+anjian_baojie_head_v8s_20240417.transd,YoloV8,FP16,5.509283
+anjian_baojie_head_v8s_20240417.transd,YoloV8,FP16,4.845099
+anjian_baojie_head_v8s_20240417.transd,YoloV8,FP16,3.249806
+anjian_baojie_head_v8s_20240417.transd,YoloV8,FP16,3.183225

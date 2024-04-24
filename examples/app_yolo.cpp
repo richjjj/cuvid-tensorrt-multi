@@ -195,8 +195,8 @@ void multi_instances_test() {
 }
 int app_yolo() {
     // multi_instances_test();
-    // test(Yolo::Type::V8, TRT::Mode::FP32, "yolov8n-traffic.transd");
-    test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5n-traffic-20231121");
+    test(Yolo::Type::V8, TRT::Mode::FP16, "anjian_baojie_head_v8s_20240417.transd");
+    // test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5n-traffic-20231121");
     // test(Yolo::Type::V5, TRT::Mode::FP32, "yolov5n-psw");
     // test(Yolo::Type::V7, TRT::Mode::INT8, "yolov7_qat_640");
 

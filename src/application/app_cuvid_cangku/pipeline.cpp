@@ -12,6 +12,7 @@
 #include <atomic>
 #include <chrono>
 #include <vector>
+#include <thread>
 
 namespace Pipeline {
 template <typename T>

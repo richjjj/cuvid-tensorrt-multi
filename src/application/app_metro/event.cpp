@@ -49,7 +49,7 @@ ViewConfig parse_json_data(const string &raw_data) {
                 tmp_event.rois.emplace_back(tmp_roi);
             }
         } else {
-            INFO("rois not found in config.Default is set to full image.");
+            // INFO("rois not found in config.Default is set to full image.");
         }
         tmp.events.emplace_back(tmp_event);
     }
@@ -211,7 +211,7 @@ public:
                                                 // 判断是否停住
                                                 json object_json = {
                                                     {"objectID", track.track_id},
-                                                    {"label", 0},
+                                                    {"label", 1},
                                                     {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
                                                     {"confidence", obj.confidence},
                                                     {"roi_name", roi.roiName}};
@@ -253,10 +253,16 @@ public:
                                                 // 判断是否停住
                                                 json object_json = {
                                                     {"objectID", track.track_id},
-                                                    {"label", 0},
+                                                    {"label", 2},
                                                     {"coordinate", {obj.left, obj.top, obj.right, obj.bottom}},
                                                     {"confidence", obj.confidence},
                                                     {"roi_name", roi.roiName}};
+                                                size_t lenth = track.center_points_.data_.size();
+                                                if (lenth >= 2) {
+                                                    object_json["secondLast_center"] = {
+                                                        track.center_points_.data_[lenth - 2].x,
+                                                        track.center_points_.data_[lenth - 2].x};
+                                                }
                                                 objects_json.emplace_back(object_json);
                                             }
                                         }
@@ -264,7 +270,7 @@ public:
                                 }
                             }
                             if (!objects_json.empty()) {
-                                json event_json = {{"eventName", "baojie"}, {"objects", objects_json}};
+                                json event_json = {{"eventName", "xingren"}, {"objects", objects_json}};
                                 events_json.emplace_back(event_json);
                             }
                         } else if (e.eventName == "test") {
@@ -299,7 +305,7 @@ public:
                 auto t3 = iLogger::timestamp_now_float();
 
                 bool isPicture = true;
-                cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
+                // cv::Mat cvimage(image.get_height(), image.get_width(), CV_8UC3);
                 // if (job.frame_index_ % 50 == 0 || !events_json.empty()) {
                 //     cudaMemcpyAsync(cvimage.data, image.device_data, image.get_data_size(), cudaMemcpyDeviceToHost,
                 //                     image.stream);
@@ -318,7 +324,7 @@ public:
                 int device              = image.device_id;
                 auto data               = tmp_json.dump();
                 bool isEmpty            = events_json.empty();
-                void *void_ptr          = reinterpret_cast<void *>(&image);
+                // void *void_ptr          = reinterpret_cast<void *>(&image);
                 if (isPicture)
                     callback_(2, image.device_data, (char *)data.c_str(), data.size(), image_width, image_height,
                               device);

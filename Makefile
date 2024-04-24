@@ -32,7 +32,8 @@ cu_mk   := $(cu_objs:.cu.o=.cu.mk)
 
 # 定义opencv和cuda需要用到的库文件
 link_opencv    := opencv_core opencv_imgproc opencv_imgcodecs opencv_videoio
-link_cuda      := cuda cudart cudnn nvcuvid nvidia-encode
+link_cuda      := cuda cudart cudnn nvcuvid 
+#nvidia-encode
 link_ffmpeg    := avcodec avformat swresample swscale avutil
 link_tensorRT  := nvinfer nvparsers nvinfer_plugin protobuf
 link_sys       := stdc++ dl
@@ -139,6 +140,9 @@ test: $(example)
 	@cd $(workdir) && ./$(example) test
 cuda: $(example)
 	@cd $(workdir) && ./$(example) cuda
+metro: $(example)
+	@cd $(workdir) && ./$(example) metro
+
 $(workdir)/$(name) : $(cpp_objs) $(cu_objs)
 	@echo Link $@
 	@mkdir -p $(dir $@)

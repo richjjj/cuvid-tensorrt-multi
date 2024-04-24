@@ -27,6 +27,7 @@ int app_json();
 int app_bus();
 int app_test();
 int app_cuda();
+int app_metro();
 #endif
 int app_yolopose();
 int app_plate();
@@ -65,6 +66,8 @@ int main(int argc, char **argv) {
         app_test();
     } else if (strcmp(method, "cuda") == 0) {
         app_cuda();
+    } else if (strcmp(method, "metro") == 0) {
+        app_metro();
     } else {
         app_yolo();
     }

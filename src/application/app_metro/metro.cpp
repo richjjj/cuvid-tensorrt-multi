@@ -99,6 +99,9 @@ public:
                     YoloGPUPtr::Image image(decoder->get_frame(&pts, &frame_index), decoder->get_width(),
                                             decoder->get_height(), gpu_id, decoder->get_stream(),
                                             YoloGPUPtr::ImageType::GPUBGR);
+                    // 显式抽帧
+                    if ((frame_index % 2) != 0)
+                        continue;
                     auto t1          = iLogger::timestamp_now_float();
                     auto objs_future = infers_[gpu_id][instance_id]->commit(image);
 
@@ -131,15 +134,10 @@ public:
 
         // #pragma omp parallel for num_threads(devices_.size())
         for (auto &gpuid : devices_) {
-            // 每个GPU多个个instances，当下设置为2个
-            // for (int i = 0; i < instances_per_device_; ++i) {
-            //     infers_[gpuid].emplace_back(std::move(YoloGPUPtr::create_infer(
-            //         model_repository + "/yolov5n-traffic.INT8.B1.trtmodel", YoloGPUPtr::Type::V5, gpuid)));
-            // }
             for (int i = 0; i < instances_per_device_; ++i) {
-                infers_[gpuid].emplace_back(std::move(
-                    YoloGPUPtr::create_infer(model_repository + "/anjian_baojie_head_v8s_20240327.transd.fp16.trtmodel",
-                                             YoloGPUPtr::Type::V8, gpuid, 0.5)));
+                infers_[gpuid].emplace_back(
+                    std::move(YoloGPUPtr::create_infer(model_repository + "/yolov5n-traffic-20231121.INT8.B1.trtmodel",
+                                                       YoloGPUPtr::Type::V5, gpuid, 0.5)));
             }
             INFO("instance.size()=%d", infers_[gpuid].size());
             for (int i = 0; i < 20; ++i) {
