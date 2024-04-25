@@ -59,7 +59,7 @@ static void inference_and_performance(int deviceid, const string& engine_file, T
     }
 
     // warmup
-    cv::Mat w_image(640, 480, CV_8UC3);
+    cv::Mat w_image(640, 640, CV_8UC3);
     vector<cv::Mat> w_images(40, w_image);
     INFO("w_images.size() = %d", w_images.size());
     vector<shared_future<Yolo::BoxArray>> boxes_array;
@@ -138,7 +138,7 @@ static void test(Yolo::Type type, TRT::Mode mode, const string& model) {
         return;
 
     string onnx_file    = iLogger::format("%s.onnx", name);
-    int test_batch_size = 1;
+    int test_batch_size = 16;
     string model_file   = iLogger::format("%s.%s.B%d.trtmodel", name, mode_name, test_batch_size);
 
     if (not iLogger::exists(model_file)) {
@@ -146,7 +146,7 @@ static void test(Yolo::Type type, TRT::Mode mode, const string& model) {
                      test_batch_size,  // max batch size
                      onnx_file,        // source
                      model_file,       // save to
-                     {}, int8process, "sample_images", "calibratorfile.cali");
+                     {}, int8process, "23020309YB-20240319-190052", "calibratorfile.cali");
     }
 
     inference_and_performance(deviceid, model_file, mode, type, name);
@@ -197,7 +197,7 @@ int app_yolo() {
     // multi_instances_test();
     // test(Yolo::Type::V8, TRT::Mode::FP16, "anjian_baojie_head_v8s_20240417.transd");
     // test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5n-traffic-20231121");
-    test(Yolo::Type::V5, TRT::Mode::FP16, "yolov5s_ditie3");
+    test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5s_ditie3");
     // test(Yolo::Type::V7, TRT::Mode::INT8, "yolov7_qat_640");
 
     // test(Yolo::Type::DAMO, TRT::Mode::FP32, "damoyolo_tinynasL25_S_cigarette");

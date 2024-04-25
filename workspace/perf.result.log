@@ -55,3 +55,4 @@ anjian_baojie_head_v8s_20240417.transd,YoloV8,FP16,3.183225
 yolov5s_ditie3,YoloV5,FP16,2.218936
 yolov5s_ditie3,YoloV5,FP16,2.269831
 yolov5s_ditie3,YoloV5,FP16,2.227088
+yolov5s_ditie3,YoloV5,INT8,1.384198
