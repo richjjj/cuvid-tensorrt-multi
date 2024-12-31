@@ -146,7 +146,7 @@ static void test(Yolo::Type type, TRT::Mode mode, const string& model) {
                      test_batch_size,  // max batch size
                      onnx_file,        // source
                      model_file,       // save to
-                     {}, int8process, "23020309YB-20240319-190052", "calibratorfile.cali");
+                     {}, int8process, "traffic_sample", "calibratorfile.cali");
     }
 
     inference_and_performance(deviceid, model_file, mode, type, name);
@@ -195,9 +195,10 @@ void multi_instances_test() {
 }
 int app_yolo() {
     // multi_instances_test();
-    // test(Yolo::Type::V8, TRT::Mode::FP16, "anjian_baojie_head_v8s_20240417.transd");
+    // test(Yolo::Type::V8, TRT::Mode::FP16, "anjian_baojie_head_v8s_20240417.transd");yolov5n-traffic-20240905
     // test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5n-traffic-20231121");
-    test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5s_ditie3");
+    test(Yolo::Type::V5, TRT::Mode::FP16, "yolov5n-traffic-20240905");
+    // test(Yolo::Type::V5, TRT::Mode::INT8, "yolov5s_ditie3");
     // test(Yolo::Type::V7, TRT::Mode::INT8, "yolov7_qat_640");
 
     // test(Yolo::Type::DAMO, TRT::Mode::FP32, "damoyolo_tinynasL25_S_cigarette");

@@ -56,3 +56,7 @@ yolov5s_ditie3,YoloV5,FP16,2.218936
 yolov5s_ditie3,YoloV5,FP16,2.269831
 yolov5s_ditie3,YoloV5,FP16,2.227088
 yolov5s_ditie3,YoloV5,INT8,1.384198
+yolov5n-traffic-20240905,YoloV5,INT8,3.114917
+yolov5n-traffic-20240905,YoloV5,INT8,0.948401
+yolov5n-traffic-20240905,YoloV5,FP16,1.252826
+yolov5n-traffic-20240905,YoloV5,FP16,1.273416

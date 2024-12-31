@@ -89,30 +89,108 @@ bool isIntersect(const Line& line1, const Line& line2) {
     }
     return false;
 }
-bool isIntersect(const Line& line1, const deque<cv::Point2f>& coordinates, int point_num = 5) {
-    vector<cv::Point2f> v(coordinates.begin(), coordinates.end());
-    if (v.size() < 15 || v.size() > 35)
-        return false;
-    std::vector<Line> lines;
-    for (int i = 5; i < coordinates.size() - 1; i++) {
-        Line line;
-        line.p1 = coordinates[5];
-        line.p2 = coordinates[i + 1];
-        lines.push_back(line);
-    }
+// bool isIntersect(const Line& line1, const deque<cv::Point2f>& coordinates, int point_num = 5) {
+//     vector<cv::Point2f> v(coordinates.begin(), coordinates.end());
+//     if (v.size() < 10 || v.size() > 25)
+//         return false;
+//     auto last = coordinates.back();
+//     if (last.y < line1.p1.y || last.y < line1.p2.y)
+//         return false;
+//     std::vector<Line> lines;
+//     for (int i = 5; i < coordinates.size() - 1; i++) {
+//         Line line;
+//         line.p1 = coordinates[5];
+//         line.p2 = coordinates[i + 1];
+//         lines.push_back(line);
+//     }
 
-    // 判断车辆轨迹线段是否与给定线段相交
-    int count = 0;
-    for (int i = 0; i < lines.size() - 1; i++) {
-        if (isIntersect(lines[i], line1)) {
-            count += 1;
-        }
-    }
-    if (count > point_num)
-        return true;
-    return false;
+//     // 判断车辆轨迹线段是否与给定线段相交
+//     int count = 0;
+//     for (int i = 0; i < lines.size() - 1; i++) {
+//         if (isIntersect(lines[i], line1)) {
+//             count += 1;
+//         }
+//     }
+//     if (count > point_num)
+//         return true;
+//     return false;
+// }
+
+// 计算向量叉积
+double crossProduct(const cv::Point2f& A, const cv::Point2f& B, const cv::Point2f& P) {
+    return (B.x - A.x) * (P.y - A.y) - (B.y - A.y) * (P.x - A.x);
 }
 
+bool isIntersect(const Line& line1, const deque<cv::Point2f>& coordinates, int offset = 0) {
+    vector<cv::Point2f> v(coordinates.begin(), coordinates.end());
+    if (v.size() < 5)
+        return false;
+    auto last = coordinates.back();
+    last.x    = last.x - offset;
+    if (last.y < min(line1.p1.y, line1.p2.y))
+        return false;
+    auto last3  = v[v.size() - 3];
+    last3.x     = last3.x - offset;
+    bool check1 = (crossProduct(line1.p1, line1.p2, last) > 0);
+    bool check3 = (crossProduct(line1.p1, line1.p2, last3) > 0);
+
+    auto last2  = v[v.size() - 2];
+    last2.x     = last2.x - offset;
+    bool check2 = (crossProduct(line1.p1, line1.p2, last2) > 0);
+
+    return check1 ^ check2 && check1 ^ check3;
+}
+
+// 未实现的方案 如果车辆的横向位置变化超过车道宽度的一半,就认为发生了变道
+bool isIntersect_v2(const Line& line1, const deque<cv::Point2f>& coordinates, float left, float top, float right,
+                    float bottom, int offset = 0) {
+    if (right - left > bottom - top)  // 过滤长宽比不符合的
+        return false;
+
+    vector<cv::Point2f> v(coordinates.begin(), coordinates.end());
+    if (v.size() < 5 || v.size() > 100)
+        return false;
+    auto last = coordinates.back();
+    last.x    = last.x - offset;
+    if (last.y < min(line1.p1.y, line1.p2.y))
+        return false;
+    if (bottom > max(line1.p1.y, line1.p2.y) - 20)
+        return false;
+
+    // 判断线段左侧还是右侧
+    bool flag   = false;
+    auto last2  = v[v.size() - 2];
+    last2.x     = last2.x - offset;
+    auto check2 = crossProduct(line1.p1, line1.p2, last2);
+    // if (crossProduct(line1.p1, line1.p2, last) > 0) {
+    //     // 最后点在线段左侧
+    //     // right bottom 则应该在右侧
+    //     // 并且要交叉
+    //     if (check2 < 0 && crossProduct(line1.p1, line1.p2, cv::Point2f(right, bottom)) < 0)
+    //         flag = true;
+    // } else {
+    //     // 最后点在线段右侧
+    //     // 则left, bottom 在线段左侧
+    //     if (check2 > 0 && crossProduct(line1.p1, line1.p2, cv::Point2f(left, bottom)) > 0)
+    //         flag = true;
+    // }
+    if (crossProduct(line1.p1, line1.p2, last) > 0) {
+        // 最后点在线段右侧, 左手坐标系
+        // 则left, bottom 在线段左侧
+        // 并且要交叉
+        if (check2 < 0 && crossProduct(line1.p1, line1.p2, cv::Point2f(left, bottom)) < 0 &&
+            abs(last.x - last2.x) < 0.25 * (right - left))
+            flag = true;
+    } else {
+        // 最后点在线段左侧
+        // right bottom 则应该在右侧
+        // 前后帧的 中心点变化不大 20241010新增
+        if (check2 > 0 && crossProduct(line1.p1, line1.p2, cv::Point2f(right, bottom)) > 0 &&
+            abs(last.x - last2.x) < 0.25 * (right - left))
+            flag = true;
+    }
+    return flag;
+}
 // object速度
 // float speedOfTrack(const deque<cv::Point2f>& coordinates) {
 //     auto length = coordinates.size();

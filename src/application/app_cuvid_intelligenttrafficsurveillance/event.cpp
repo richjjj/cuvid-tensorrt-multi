@@ -55,14 +55,14 @@ ViewConfig parse_json_data(const string &raw_data) {
     }
     return tmp;
 }
-vector<Object> det2tracks(const YoloGPUPtr::BoxArray &array) {
+vector<Object> det2tracks(const YoloGPUPtr::BoxArray &array, int offset) {
     vector<Object> outputs;
     for (int i = 0; i < array.size(); ++i) {
         auto &abox = array[i];
         Object obox;
         obox.prob    = abox.confidence;
         obox.label   = abox.class_label;
-        obox.rect[0] = abox.left;
+        obox.rect[0] = abox.left + offset;  // offset
         obox.rect[1] = abox.top;
         obox.rect[2] = abox.right - abox.left;
         obox.rect[3] = abox.bottom - abox.top;
@@ -140,16 +140,18 @@ public:
                 nlohmann::json tmp_json;
                 tmp_json["cameraID"] = config_.cameraID;
                 tmp_json["uri"]      = config_.uri;
+                int track_offset     = stoi(config_.cameraID) * 1000;
                 json events_json     = json::array();
                 auto t1              = iLogger::timestamp_now_float();
                 auto &image          = job.image;
                 auto &_objs          = job.boxarray_;
                 YoloGPUPtr::BoxArray objs;
                 for (auto &obj : _objs) {
-                    if (obj.class_label <= 7 && obj.bottom >= image.height / 3.0)
+                    // 20241010 新增 obj.right - obj.left < obj.bottom - obj.top 取消
+                    if (obj.class_label <= 7 && obj.bottom >= image.height / 3.0 && obj.bottom <= image.height * 0.9)
                         objs.emplace_back(obj);
                 }
-                auto tracks = tracker_->update(det2tracks(objs));
+                auto tracks = tracker_->update(det2tracks(objs, track_offset));
                 auto t2     = iLogger::timestamp_now_float();
                 for (auto &e : config_.events) {
                     if (e.enable) {
@@ -159,10 +161,11 @@ public:
                                 auto &track = tracks[t];
                                 auto &obj   = objs[track.detection_index];
                                 // car
-                                // if ((obj.class_label >= 2 && obj.class_label <= 7) && obj.confidence > 0.4) {
-                                if (obj.class_label == 0 && obj.confidence > 0.4 && obj.bottom < image.height / 2.0 &&
-                                    obj.left > image.width / 2.0 &&
-                                    (obj.bottom - obj.top) < 1.2 * (obj.right - obj.left)) {
+                                if ((obj.class_label == 0) && obj.confidence > 0.4) {
+                                    // if (obj.class_label == 0 && obj.confidence > 0.4 && obj.bottom < image.height
+                                    // / 2.0 &&
+                                    //     obj.left > image.width / 2.0 &&
+                                    //     (obj.bottom - obj.top) < 1.2 * (obj.right - obj.left)) {
                                     // 判断在哪个roi
                                     if (e.rois.empty()) {
                                         bool stop = isStopped(track.center_points_.data_);
@@ -177,7 +180,8 @@ public:
                                         }
                                     } else {
                                         for (auto &roi : e.rois) {
-                                            if (isPointInPolygon(roi.points, track.current_center_point_)) {
+                                            if (isPointInPolygon(roi.points, cv::Point((obj.left + obj.right) / 2,
+                                                                                       (obj.top + obj.bottom) / 2))) {
                                                 // 判断是否停住
                                                 bool stop = isStopped(track.center_points_.data_);
                                                 if (stop) {
@@ -221,7 +225,8 @@ public:
                                         }
                                     } else {
                                         for (auto &roi : e.rois) {
-                                            if (isPointInPolygon(roi.points, track.current_center_point_)) {
+                                            if (isPointInPolygon(roi.points, cv::Point((obj.left + obj.right) / 2,
+                                                                                       (obj.top + obj.bottom) / 2))) {
                                                 // 判断是否停住
                                                 bool stop =
                                                     isStopped(track.center_points_.data_) &&
@@ -291,12 +296,15 @@ public:
                             for (size_t t = 0; t < tracks.size(); t++) {
                                 auto &track = tracks[t];
                                 auto &obj   = objs[track.detection_index];
-                                // car
-                                if (obj.class_label == 0 && obj.confidence > 0.4) {
+                                // car 20241009修改：置信度0.4改为0.8
+                                if (obj.class_label == 0 && obj.confidence > 0.8) {
                                     for (auto &roi : e.rois) {
                                         // bool changeLine
                                         Line l{roi.points[0], roi.points[1]};
-                                        bool changeLine = isIntersect(l, track.center_points_.data_, 7);
+                                        // bool changeLine = isIntersect(l, track.center_points_.data_, 7,
+                                        // track_offset);
+                                        bool changeLine = isIntersect_v2(l, track.center_points_.data_, obj.left,
+                                                                         obj.top, obj.right, obj.bottom, track_offset);
                                         // 判断在哪个roi
                                         if (changeLine) {
                                             json object_json = {
@@ -325,7 +333,10 @@ public:
                                     for (auto &roi : e.rois) {
                                         // bool changeLine
                                         Line l{roi.points[0], roi.points[1]};
-                                        bool changeLine = isIntersect(l, track.center_points_.data_, 5);
+                                        // bool changeLine = isIntersect(l, track.center_points_.data_, 5,
+                                        // track_offset);
+                                        bool changeLine = isIntersect_v2(l, track.center_points_.data_, obj.left,
+                                                                         obj.top, obj.right, obj.bottom, track_offset);
                                         // 判断在哪个roi
                                         if (changeLine) {
                                             json object_json = {
@@ -395,7 +406,8 @@ public:
                                     } else {
                                         for (auto &roi : e.rois) {
                                             // 1. 判断行人是否在区域里 2. 需要有位移
-                                            if (isPointInPolygon(roi.points, track.current_center_point_)) {
+                                            if (isPointInPolygon(roi.points, cv::Point((obj.left + obj.right) / 2,
+                                                                                       (obj.top + obj.bottom) / 2))) {
                                                 float speed = speedOfTrack(track.center_points_.data_);
                                                 if (speed > 2 && speed < 100) {
                                                     json object_json = {
@@ -435,7 +447,8 @@ public:
                                     } else {
                                         for (auto &roi : e.rois) {
                                             // 1. 判断行人是否在区域里 2. 需要有位移
-                                            if (isPointInPolygon(roi.points, track.current_center_point_)) {
+                                            if (isPointInPolygon(roi.points, cv::Point((obj.left + obj.right) / 2,
+                                                                                       (obj.top + obj.bottom) / 2))) {
                                                 json object_json = {
                                                     {"objectID", track.track_id},
                                                     {"label", 2},

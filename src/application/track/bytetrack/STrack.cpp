@@ -18,8 +18,8 @@ STrack::STrack(vector<float> tlwh_, float score, int det_index) {
     tracklet_len    = 0;
     this->score     = score;
     start_frame     = 0;
-
-    assign_last_current_tlbr({(this->tlbr[0] + this->tlbr[2]) / 2.f, (this->tlbr[1] + this->tlbr[3]) / 2.f});
+    // 不采用中心点为了减少大车误报
+    assign_last_current_tlbr({(this->tlbr[0] + this->tlbr[2]) / 2.f, this->tlbr[3]});
 }
 
 STrack::~STrack() {}
